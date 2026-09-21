@@ -21,7 +21,7 @@ For persona training, a GPU with enough VRAM is strongly preferred. The trainer 
 Windows:
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/SummusStuprator/persona-activation-studio.git
 cd persona-activation-studio
 powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -Profile core
 ```
@@ -29,7 +29,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -Profile core
 Linux/macOS:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/SummusStuprator/persona-activation-studio.git
 cd persona-activation-studio
 bash scripts/setup.sh core
 ```
