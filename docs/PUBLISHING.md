@@ -31,7 +31,7 @@ The local build process never configures a Git remote for you.
 4. **Post-push audit** (expect empty output)
 
    ```bash
-   git ls-files | grep -iE 'gguf|safetensors|\.venv|trusted-files|studio\.toml|persona-sources|resource-policy|\.key$|\.token$'
+   git ls-files | grep -iE '\.gguf|\.safetensors|\.venv/|trusted-files\.json|^studio\.toml$|persona-sources\.json|resource-policy\.json|\.key$|\.token$'
    ```
 
 5. **Docs links** — confirm README install snippets match the published repository URL.
