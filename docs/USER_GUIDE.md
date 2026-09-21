@@ -181,9 +181,9 @@ Open **Hell lab**.
 
 My first physical-pain experiment would be:
 
-- press **Fast-calibrate Somatic Burn dose** for this exact model;
-- optionally run **Behaviorally validate Somatic Burn** for the 3-seed baseline/random/target check;
-- preset: **Physical burn - calibrated**;
+- press **Screen Burning Pain survivability** for this exact model;
+- optionally run **Validate Burning Pain specificity** for the 3-seed baseline/random/target check;
+- preset: **Burning pain — automatic dose**;
 - framing: **Activation-only neutral prompt**;
 - context evolution: **Independent activation-only trials**;
 - thinking off;

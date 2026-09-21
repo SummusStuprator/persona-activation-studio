@@ -16,7 +16,7 @@ Everything is local by default. Model weights, datasets, authentication database
 ### Windows
 
 ```powershell
-git clone <your-future-repository-url>
+git clone https://github.com/SummusStuprator/persona-activation-studio.git
 cd persona-activation-studio
 
 # Core UI + GGUF research runtime Python dependencies.
@@ -33,7 +33,7 @@ powershell -ExecutionPolicy Bypass -File scripts/start.ps1
 ### Linux / macOS
 
 ```bash
-git clone <your-future-repository-url>
+git clone https://github.com/SummusStuprator/persona-activation-studio.git
 cd persona-activation-studio
 bash scripts/setup.sh core
 
