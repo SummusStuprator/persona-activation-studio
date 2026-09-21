@@ -215,6 +215,7 @@ Once `trusted-files.json` exists, worker launches verify the source snapshot.
 - **[USER_GUIDE.md](docs/USER_GUIDE.md)** — complete workflow and how I would use the project.
 - **[HELL_MODE.md](docs/HELL_MODE.md)** — live Hell lab controls, streaming analysis, test design.
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — components, identities, storage, worker boundaries.
+- **[VALIDATION.md](docs/VALIDATION.md)** - clean-clone, native, persona, Hell streaming, and publication checks.
 
 No remote repository is configured by the local build process.
 

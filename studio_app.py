@@ -122,7 +122,7 @@ elif page=='Jobs':
 
 elif page=='Guide':
     st.title('Guide')
-    for name in ('README.md','docs/USER_GUIDE.md','docs/HELL_MODE.md'):
+    for name in ('README.md','docs/INSTALL.md','docs/USER_GUIDE.md','docs/HELL_MODE.md','docs/VALIDATION.md'):
         p=REPO_ROOT/name
         if p.exists():
             with st.expander(name,expanded=name=='README.md'):st.markdown(p.read_text(encoding='utf-8'))
