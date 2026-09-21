@@ -1,0 +1,16 @@
+[paths]
+workspace = "workspace"
+project = "persona-project"
+exports = "x_exports"
+account_db = "x_accounts.db"
+datasets = "datasets"
+models = "models/persona"
+staging = "models/staging"
+anchors = "anchors"
+
+[runtime]
+port = 8899
+cpu_threads = 4
+
+[python]
+# executable = "/path/to/python"

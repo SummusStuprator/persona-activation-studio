@@ -1,0 +1,62 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Local configuration / credentials
+studio.toml
+.env
+*.key
+*.token
+x_accounts.db
+
+# Generated/local data
+workspace/*
+!workspace/.gitkeep
+vectors/
+runs/
+sessions/
+uploads/
+cache/
+preparation/
+validation/
+calibration/chat-profiles/
+calibration/actuator-profiles/
+logs/
+reports/
+backups/
+app.log
+app-process.json
+compatibility-report.json
+
+# Model/runtime artifacts
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+native/runtime/
+native/runtime-compat/
+.vendor/
+
+# Dataset exports
+x_exports/
+datasets/private/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+persona-sources.json
+lab-settings.json
+resource-policy.json
+patch_*.py
+fix_*.py
+native/build/
+compatibility/
+trusted-files.json
