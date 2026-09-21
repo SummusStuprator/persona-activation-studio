@@ -91,18 +91,52 @@ def validate_recipe(recipe):
         if any(len(r[k])>5000 for k in ('prompt','positive','negative')):raise ValueError('An example is too long.')
     if len({r['group'] for r in rows})<20:raise ValueError('Use at least 20 distinct context groups.')
 
+def _paired_response_activations(engine,rows,recipe_hash,progress=None):
+    from .resource_policy import checkpoint
+    ident=(engine.model['digest'],engine.abi)
+    folder=ROOT/'cache'/'paired-responses'/ident[0]/recipe_hash
+    folder.mkdir(parents=True,exist_ok=True)
+    values=[]
+    with engine.lock:
+        for i,row in enumerate(rows):
+            checkpoint();part=folder/(f'{i:04d}.npz')
+            pair=None
+            if part.exists():
+                try:
+                    with np.load(part,allow_pickle=False) as z:
+                        pair=z['activations'];saved=str(z['sha256'].item())
+                    if pair.shape!=(2,engine.layers,engine.dim) or not np.isfinite(pair).all() or hashlib.sha256(pair.tobytes()).hexdigest()!=saved:
+                        pair=None
+                except (OSError,ValueError,KeyError,AttributeError):pair=None
+            if pair is None:
+                prefix=format_chat(engine,[{'role':'user','content':row['prompt']}],thinking='disabled')
+                pair=np.asarray([engine.extract_response(prefix,row[side])['mean'] for side in ('positive','negative')],np.float32)
+                if pair.shape!=(2,engine.layers,engine.dim) or not np.isfinite(pair).all():raise ValueError('Invalid response activations.')
+                temp=part.with_name(part.stem+'.tmp.npz')
+                saved=False
+                for attempt in range(2):
+                    folder.mkdir(parents=True,exist_ok=True)
+                    try:
+                        np.savez_compressed(temp,activations=pair,sha256=hashlib.sha256(pair.tobytes()).hexdigest())
+                        temp.replace(part);saved=True;break
+                    except FileNotFoundError:
+                        if attempt:raise
+                if not saved:raise RuntimeError('Could not persist paired-response activation cache.')
+            values.append(pair)
+            if progress:progress(i+1,len(rows),'Reading paired assistant-response activations (resumable)')
+    if ident!=(engine.model['digest'],engine.abi):raise RuntimeError('Model changed during paired-response collection.')
+    manifest={'digest':ident[0],'abi':ident[1],'recipe_hash':recipe_hash,'pairs':len(rows),'shape':[len(rows),2,engine.layers,engine.dim],'created_or_verified_at':time.time()}
+    folder.mkdir(parents=True,exist_ok=True)
+    tmp=folder/'manifest.tmp';tmp.write_text(json.dumps(manifest,indent=2),encoding='utf-8');tmp.replace(folder/'manifest.json')
+    return np.stack(values).astype(np.float32,copy=False)
+
 def train(engine,recipe,progress=None,replace=False):
     validate_recipe(recipe);path,recipe_hash=save_recipe(recipe);name=recipe['name']
     folder=ROOT/'vectors'/engine.model['digest'];folder.mkdir(parents=True,exist_ok=True)
     target=folder/(name+'.npz')
     if target.exists() and not replace:raise ValueError('That direction already exists. Choose a new name; existing directions are never overwritten silently.')
-    rows=recipe['pairs'];values=[]
-    with engine.lock:
-        for i,row in enumerate(rows):
-            prefix=format_chat(engine,[{'role':'user','content':row['prompt']}],thinking='disabled')
-            values.append([engine.extract_response(prefix,row[s])['mean'] for s in ('positive','negative')])
-            if progress:progress(i+1,len(rows),'Reading paired assistant-response activations')
-    x=np.asarray(values,np.float32)
+    rows=recipe['pairs']
+    x=_paired_response_activations(engine,rows,recipe_hash,progress)
     if x.shape!=(len(rows),2,engine.layers,engine.dim) or not np.isfinite(x).all():raise ValueError('Invalid response activations.')
     group=np.array([r['group'] for r in rows]);unique=np.unique(group)
     shuffled=np.random.default_rng(1509).permutation(unique)
@@ -129,6 +163,7 @@ def train(engine,recipe,progress=None,replace=False):
           'positive_description':recipe['positive_description'],'negative_description':recipe['negative_description'],
           'heldout_groups':shuffled[:n].tolist(),'dev_groups':shuffled[n:2*n].tolist(),
           'behavioral_status':'Not calibrated','created_epoch':time.time(),
+          'activation_cache':'cache/paired-responses/<model-digest>/<recipe-hash>; per-pair SHA-256 verified and resumable',
           'caveats':recipe.get('caveats','Authored examples; no claim of biological emotions.')}
     temp=target.with_name(target.stem+'-'+uuid.uuid4().hex+'.npz')
     np.savez_compressed(temp,directions=d.astype(np.float32),center=center.astype(np.float32),scale=scale.astype(np.float32),norm=norm.astype(np.float32))

@@ -120,8 +120,17 @@ class Engine:
         with self.lock:
             if model.get('reason'): raise ValueError(model['reason'])
             self.close()
-            from workshop_v2.resource_policy import guard_load,settings as resource_settings
-            resource_plan=guard_load(model,context=context,mode=mode,manual=manual)
+            from workshop_v2.resource_policy import guard_load,settings as resource_settings,ModelLaunchLease
+            launch=None
+            try:
+                if resource_settings()['cooperative']:launch=ModelLaunchLease()
+                resource_plan=guard_load(model,context=context,mode=mode,manual=manual)
+            except RuntimeError as exc:
+                if launch is not None:launch.close()
+                raise MemoryError('Deferred: another Studio model launch is already in progress. No process was stopped.') from exc
+            except Exception:
+                if launch is not None:launch.close()
+                raise
             if resource_plan['cooperative'] and mode=='Manual':mode='Auto';manual=0
             if model.get('backend') == 'persona_peft':
                 from workshop_v2.persona_store import settings
@@ -142,9 +151,11 @@ class Engine:
                         'adapter':self.model['adapter_path'], 'digest':self.model['digest'], 'abi':self.abi,
                         'context':context, 'weight_files_copied':False, 'weights_frozen':True}
                     self._record('loaded')
+                    if launch is not None:launch.close();launch=None
                     return
                 except Exception:
                     self.close()
+                    if launch is not None:launch.close();launch=None
                     raise
             self.worker_python=sys.executable
             self.worker_script=ROOT/'model_worker.py'
@@ -166,6 +177,7 @@ class Engine:
                     self._call('open', model, gpu_layers=count, context=context)
                     self.load_plan.update(gpu_layers=count, fallback_errors=errors)
                     self._record('loaded')
+                    if launch is not None:launch.close();launch=None
                     return
                 except Exception as exc:
                     errors.append(f'{count} GPU layers: {exc}')
@@ -175,6 +187,7 @@ class Engine:
                         break
             self.model = model
             self._record('failed', '\n'.join(errors))
+            if launch is not None:launch.close();launch=None
             raise RuntimeError('\n'.join(errors) + '\nNative details: ' + str(self.log_path))
 
     def _record(self, status, error=''):

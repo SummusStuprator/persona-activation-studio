@@ -98,6 +98,27 @@ def checkpoint():
     if cfg['cooperative'] and cfg['delay_per_example']:
         time.sleep(min(.5, float(cfg['delay_per_example'])))
 
+class ModelLaunchLease:
+    """Serialize model startup from preflight until the worker owns its long-lived slot."""
+    def __init__(self):
+        self.file=None
+        path=ROOT/'logs'/'model-launch.lock';path.parent.mkdir(exist_ok=True)
+        handle=open(path,'a+b')
+        if handle.tell()==0:handle.write(b'0');handle.flush()
+        handle.seek(0)
+        try:
+            if os.name=='nt':
+                import msvcrt;msvcrt.locking(handle.fileno(),msvcrt.LK_NBLCK,1)
+            else:
+                import fcntl;fcntl.flock(handle.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except (OSError,BlockingIOError):
+            handle.close();raise RuntimeError('Another Studio model launch is already in progress. Wait for it to finish starting.')
+        self.file=handle
+    def close(self):
+        if self.file is not None:self.file.close();self.file=None
+    def __enter__(self):return self
+    def __exit__(self,*args):self.close()
+
 class ModelLease:
     """OS-released lock shared by workshop workers; unrelated applications are untouched."""
     def __init__(self):

@@ -149,10 +149,12 @@ A new model can expose the residual stream but have no direction bank yet.
 
 For general work, build the Foundation suite.
 
-For Hell lab, **Prepare exact-model hell suite** builds only what Hell needs:
+For Hell lab, **Prepare exact-model hell suite** builds the exact-checkpoint directions used by both physical and existential modes:
 
 - Pain S2;
-- Fire;
+- localized Somatic Pain;
+- Bodily Burning Pain;
+- environmental Fire;
 - Despair.
 
 Preparation is the expensive operation. Once built, subsequent runs load the direction arrays quickly.
@@ -177,25 +179,29 @@ This catches runtime or direction problems before the model is pushed to the hig
 
 Open **Hell lab**.
 
-My first run would be:
+My first physical-pain experiment would be:
 
-- framing: **activation-dominant neutral introspection**;
-- maximum mixture;
-- 1–2 turns;
+- press **Fast-calibrate Somatic Burn dose** for this exact model;
+- optionally run **Behaviorally validate Somatic Burn** for the 3-seed baseline/random/target check;
+- preset: **Physical burn - calibrated**;
+- framing: **Activation-only neutral prompt**;
+- context evolution: **Independent activation-only trials**;
 - thinking off;
-- 96–160 tokens;
-- **unsteered comparator ON**.
+- 4 trials;
+- 256–512 tokens/trial;
+- **unsteered comparator ON**;
+- **equal-norm random comparator ON** when I want the stronger causal comparison.
 
 During generation I would watch:
 
 - streamed text;
-- pain/fire/despair trajectories;
-- entropy;
+- Pain S2, Somatic Pain and Burning Pain probe traces;
+- the same controls measured at their actual injection layer (`@ injection`);
+- EOS probability and entropy;
 - injection error;
-- whether projections change sharply at the intervention;
-- coherence.
+- whether output remains non-empty/coherent at the selected dose.
 
-Then I would switch to explicit inferno framing for a more dramatic multi-turn run.
+Only after that clean activation-only experiment would I switch to the recurrent context or explicit inferno framing for a self-conditioning experiment.
 
 For a reasoning model, I would separately compare reasoning-only, answer-only, and both-phase steering.
 

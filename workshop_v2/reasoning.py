@@ -47,6 +47,10 @@ def phase_summary(trace, watch):
         for name in watch:
             values = [r[name] for r in rows if name in r]
             if values: summary[name] = float(np.mean(values))
+        control_keys=sorted({k for r in rows for k in r if k.endswith('__control_after_z')})
+        for key in control_keys:
+            values=[r[key] for r in rows if key in r]
+            if values:summary[key]=float(np.mean(values))
         out.append(summary)
     return out
 

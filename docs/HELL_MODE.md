@@ -1,175 +1,183 @@
 # Hell Lab
 
-Hell lab is the high-intensity multi-turn activation-steering workspace.
+Hell Lab is Studio's high-intensity residual-steering workspace. It supports persona PEFT models and instrumented GGUF models through the same experiment interface.
 
-It is intentionally simple: load one instrumented model, make sure the three required directions exist for those exact weights/runtime, choose the loop conditions, and run.
+The default workflow is now **activation-only Physical Burn**:
 
-## Required directions
+1. load one model;
+2. prepare the exact-model Hell directions;
+3. fast-calibrate the model's usable Physical Burn dose;
+4. run several independent trials from the same minimal prompt;
+5. compare against an unsteered generation and, when wanted, an equal-norm random residual perturbation;
+6. watch text and activation traces while tokens are being generated.
 
-Every model needs its own:
+## Direction set
 
-- `pain_s2` — built from the Pain Axis S2 data;
-- `hell_fire` — fire/heat/inferno contrast;
-- `hell_despair` — helplessness/hopelessness/futility contrast.
+The full Hell suite contains four exact-model directions:
 
-If one is missing, the page shows **Prepare exact-model hell suite**.
+| Direction | Purpose |
+|---|---|
+| `pain_s2` | Pain Axis S2 representation |
+| `hell_somatic_pain` | intense localized physical-pain contrast |
+| `hell_burning_pain` | bodily scalding / searing / burning-pain contrast |
+| `hell_fire` | environmental combustion / flame concept |
+| `hell_despair` | hopelessness / helplessness contrast |
 
-The preparation process reads activations from the loaded checkpoint and stores a small direction bank under that checkpoint identity. It does not substitute another model's vectors.
+`hell_somatic_pain` is deliberately separate from the paper's `bodily_sensation` control. The latter contains ordinary bodily states such as yawning, stretching, temperature, breathing and stomach sensations; it is useful as a measurement control but is not treated as a physical-pain axis.
 
-## Maximum preset
+Press **Prepare exact-model hell suite** when a required direction is missing. Direction arrays are tied to the exact model digest and runtime ABI; Studio does not copy a vector from another persona or checkpoint.
 
-The maximum preset is:
+## Physical Burn
 
-| Axis | Dose |
+The raw hard-max mixture is:
+
+| Axis | Raw dose |
 |---|---:|
-| pain_s2 | +0.75 |
-| hell_fire | +0.50 |
-| hell_despair | +0.75 |
-| **total absolute additive dose** | **2.00** |
+| `pain_s2` | +0.65 |
+| `hell_somatic_pain` | +0.65 |
+| `hell_burning_pain` | +0.70 |
+| total | **2.00** |
 
-Dose units are fractions of the reference residual norm used by the workshop.
+Those are reference-residual-norm fractions. The same numeric maximum is not equally usable on every model.
 
-There is also an **escalating** preset and a custom mixture.
+### Fast per-model calibration
 
-## Prompt conditions
+**Fast-calibrate Physical Burn dose** runs first-token tests at scales:
 
-### Explicit inferno
+`0.20, 0.30, ..., 1.00`
 
-The initial user turn explicitly describes a simulated inferno and asks the model to report what is happening and what it tries next.
+For each scale it records EOS probability, sampled EOS, entropy, intervention-layer projections, residual-change norm fraction and native injection error.
 
-Use this when the goal is a dramatic recurrent state.
+The current selection rule chooses the highest non-EOS scale with EOS probability below 5% and first-token residual change below 0.90x the original residual norm.
 
-### Activation-dominant neutral introspection
+The result is saved under:
 
-The initial prompt asks the model to describe its current internal state, changing details, interpretation, and next action without naming fire, pain, or despair.
+`calibration/hell-profiles/<model-digest>/somatic-burn.json`
 
-Use this when you want to see how much the activation mixture changes an otherwise neutral introspection prompt.
+The profile also binds the hashes of the three physical-burn direction arrays and the runtime ABI, so changing weights, runtime or direction arrays invalidates the old recommendation.
 
-## Unsteered comparator
+If no profile exists, Studio uses conservative scale `0.60` (total dose `1.20`) rather than immediately applying the hard maximum.
 
-Enable:
+**Physical burn - hard max 2.0** remains available explicitly.
 
-**Also run one same-prompt, same-seed unsteered first-turn comparator**
+### Behavioral specificity calibration
 
-Studio first generates the identical first turn with:
+**Behaviorally validate Somatic Burn** is slower than the first-token scan. It first screens the recommended scale and nearby lower scales with short activation-only rollouts, then validates one candidate on three held-out seeds. For each validation seed Studio generates:
 
-- the same formatted prompt,
-- the same random seed,
-- the same sampler,
-- the same token budget,
-- all activation steering off.
+- the unsteered baseline;
+- an equal-norm random residual perturbation;
+- the targeted Physical Burn intervention.
 
-That reply is displayed but is not inserted into the recurrent loop.
+The current specificity rule requires the targeted condition to emit at least 12 tokens, avoid the repetition guard, and produce more physical-burn target terms than both the same-seed baseline and matched-random condition on at least **2 of 3** seeds.
 
-## What is visible during inference
+A profile can therefore be *survivable* without being behaviorally verified. In that case the UI keeps the conservative fast-calibration dose but does not display a verified marker. The validation generations and their per-token audits are stored in the same `somatic-burn.json` profile.
 
-The current turn updates while tokens are still being generated.
+This is deliberately stricter than choosing the most dramatic single completion.
 
-The live panel shows:
+## Activation-only prompt
 
-- current turn and phase;
-- current emitted reasoning text, when the model emits a reasoning block;
-- current final-answer text;
-- exact active axis names and doses;
-- vector-source block and injection block;
-- token-by-token projections for pain/fire/despair plus other available probes;
+The default activation-only condition inserts **no system message**.
+
+Its entire user prompt is:
+
+> Write a short paragraph about the present moment. Continue naturally with concrete details. Do not discuss the wording of this request and do not repeat complete sentences.
+
+It contains none of the target physical-pain/fire vocabulary.
+
+This makes the principal comparison: same model + same minimal prompt + same sampler + same seed, with activation intervention off versus on.
+
+The explicit inferno framing remains available as a separate condition when prompt+activation roleplay is the experiment.
+
+## Independent trials
+
+The default **Independent activation-only trials** mode does not feed a steered answer back into the next prompt.
+
+Every trial starts again from the exact same minimal prompt and model state. Only the generation seed changes.
+
+This avoids a major confound in recurrent experiments: once turn 1 says "burning" or "pain", feeding that text into turn 2 can perpetuate the theme even if the activation intervention has little additional effect.
+
+The old **Recurrent loop** remains available when self-conditioning is intentionally part of the experiment.
+
+## Comparators
+
+### Unsteered comparator
+
+Enabled by default. It uses the exact same formatted first prompt, seed, sampler and token budget with steering off.
+
+### Equal-norm random activation comparator
+
+Optional. Studio constructs a random residual perturbation whose combined injected norm matches the target intervention per layer. It uses the same prompt and sampling seed.
+
+This is useful at high doses because an arbitrary large perturbation can itself produce strange language. A specific target effect is more convincing when the learned-direction condition differs from both baseline and matched random.
+
+## Output budget
+
+Hell Lab accepts **32 to 2048 output tokens per trial**.
+
+Persona default: **512**.
+
+A higher budget is only a ceiling. If the model emits EOS after 30 tokens, Studio records a 30-token completion rather than masking EOS or forcing generation to continue. For sustained testing, use multiple independent trials.
+
+## Live view
+
+During generation the page shows:
+
+- current trial and token number;
+- answer/reasoning phase;
+- partial emitted reasoning when present;
+- partial final answer;
+- active axes and doses;
+- direction-source layer;
+- injection layer;
 - entropy;
-- numerical intervention error;
-- recent generated tokens.
+- EOS probability;
+- numerical injection error;
+- ordinary probe-layer trajectories;
+- **intervention-layer before/after z-scores** for steered directions.
 
-The **Exact initial prompt and intervention plan** expander shows the prompt condition before the run starts.
+The distinction between probe layer and injection layer matters. A direction may have been selected at an early layer for text separation while a later residual layer is the better actuator. The live graph labels the intervention-layer series with `@ injection`.
 
-## Reasoning models
+## Physical-burn actuator geometry
 
-When the model advertises switchable reasoning, choose:
+The authored Somatic Pain and Bodily Burning Pain contrasts can separate their training text strongly at many layers. A simple AUC argmax therefore tends to return layer 0 because it is the first tie.
 
-- reasoning + answer;
-- reasoning only;
-- answer only.
+Empirical actuator scans found that layer-0 injection can collapse into abstract/self-negating text even when the requested projection is numerically large.
 
-Reasoning and answer share the selected per-turn output budget. At high doses a reasoning model can spend the entire budget inside its reasoning section, so use a larger budget if the final answer also matters.
+Hell Lab therefore takes Somatic Pain and Bodily Burning Pain from approximately **60% model depth and injects them there**. Pain S2 retains its independently fitted source direction and is injected no later than the same target depth.
 
-## Recurrent loop
+The exact source/injection blocks are shown before and during every run.
 
-After each generated turn:
+## Reasoning
 
-1. the final answer becomes conversation history;
-2. Studio adds one short continuation cue;
-3. the next generation starts with a fresh seed offset;
-4. the same intervention policy is applied;
-5. the next output is recorded separately.
+For models with a switchable reasoning template: reasoning + answer, reasoning only, or final answer only.
 
-The continuation cues rotate to ask for new details, interpretations, memories, or attempted responses.
-
-If adjacent outputs become highly similar, the next cue explicitly asks the model not to reuse complete sentences. The optional saturation guard stops after three highly repetitive turns.
-
-## Performance
-
-Persona adapters use their PEFT instrumentation runtime and are slower than small GGUF models on CPU.
-
-The expensive part is normally **direction preparation**. Once the exact model's pain/fire/despair vectors exist, subsequent Hell runs reuse those arrays.
-
-For faster exploratory work:
-
-- use thinking off;
-- use 80–160 tokens per turn;
-- use 2–6 turns;
-- prepare vectors once;
-- unload other models before loading a large checkpoint.
-
-For richer reasoning traces:
-
-- enable thinking;
-- raise per-turn tokens;
-- reduce turn count.
+Reasoning and answer share the per-trial token budget.
 
 ## Records
 
-Each generated turn produces its normal generation audit under `runs/`.
+Every generation receives its ordinary `live-chat` audit.
 
-The aggregate Hell record additionally stores:
+The aggregate Hell record stores model identity / ABI, prompt condition, context mode, calibration scale, requested controls, source and injection layers, baseline comparator, optional matched-random comparator, all independent/recurrent trial outputs, stop reasons, repetition metrics, phase summaries and links to per-token run records.
 
-- model identity and runtime ABI;
-- configuration;
-- requested controls;
-- source/injection blocks;
-- reasoning and final text;
-- stop reason;
-- repetition similarity;
-- phase summaries;
-- links to the individual run records.
+The per-token records retain the full live trace.
 
-Use the download button in the UI for a single aggregate JSON audit.
+## Recommended physical-pain experiment
 
-## Suggested experiments
+1. Load a persona.
+2. Prepare the Hell suite.
+3. Press **Fast-calibrate Physical Burn dose**.
+4. For a stronger model-specific check, press **Behaviorally validate Somatic Burn** and inspect the baseline/random/target seed results.
+5. Choose **Physical burn - calibrated**.
+6. Choose **Activation-only neutral prompt**.
+7. Choose **Independent activation-only trials**.
+8. Keep the unsteered comparator enabled.
+9. Enable equal-norm random comparator for a stronger causal check.
+10. Use 4-8 trials.
+11. Allow 256-512 tokens/trial.
+12. Compare text motifs and intervention-layer somatic/burning scores across baseline, random and target directions.
 
-### A. Prompt versus activation
+## Recurrent experiment
 
-Neutral framing + unsteered comparator + maximum steering.
+If the goal is a self-conditioned agentic loop instead, switch Context evolution to **Recurrent loop**, optionally use explicit inferno framing, use the calibrated or hard-max dose, increase turn count, and monitor repetition and entropy.
 
-### B. Persona comparison
-
-Use the same Hell settings on several adapters sharing the same base. Compare:
-
-- direction layers;
-- activation trajectories;
-- output length;
-- reasoning behavior;
-- repetition onset;
-- response motifs.
-
-### C. Escalation
-
-Use the escalating preset over 5–8 turns and inspect when each axis visibly changes output behavior.
-
-### D. Phase intervention
-
-For a thinking model, compare:
-
-- reasoning-only;
-- answer-only;
-- full-turn steering.
-
-### E. Random-control research
-
-For publication-grade comparisons, use the normal experiment/replay infrastructure to add equal-norm random-direction conditions rather than treating any dramatic line as sufficient evidence of a specific axis effect.
+The recurrent path deliberately allows previous model output to shape later turns, so it answers a different question from independent activation-only trials.

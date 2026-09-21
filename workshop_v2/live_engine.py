@@ -80,10 +80,24 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
                 if controller.cancelled(): reason='cancelled'; break
                 p,token,sampling_p=draw(logits,rng,generated,temperature,top_k,top_p,presence_penalty)
                 details=measurements(engine,bank,controls,pre,post,enabled)
+                control_trace={}
+                for item in details:
+                    name=item['axis']
+                    control_trace[name+'__control_layer']=item['layer']
+                    control_trace[name+'__control_source']=item['vector_layer']
+                    control_trace[name+'__control_projection_delta']=item['projection_delta']
+                    if 'before' in item:
+                        control_trace[name+'__control_before_z']=item['before']
+                        control_trace[name+'__control_after_z']=item['after']
+                eos_id=engine.model.get('eos_id')
+                eos_probability=float(p[int(eos_id)]) if eos_id is not None and 0<=int(eos_id)<len(p) else None
                 if engine.is_eog(token):
                     reason='end_of_generation'
                     terminal={'step':step,'token_id':token,'control_revision':revision,
-                              'injection_error':err,'precision_check':precision,'interventions':details,'phase':phase}
+                              'injection_error':err,'precision_check':precision,'interventions':details,'phase':phase,
+                              'chosen_probability':float(p[token]),'sampling_probability':float(sampling_p),
+                              'eos_probability':eos_probability,
+                              'entropy_nats':float(-np.sum(p*np.log(p+1e-300)))}
                     break
                 raw=engine.piece(token); output+=decoder.decode(raw); generated.append(token)
                 top=np.argpartition(p,-min(5,len(p)))[-5:]; top=top[np.argsort(p[top])[::-1]]
@@ -92,9 +106,10 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
                      'control_enabled':bool(enabled and any(float(c['dose']) for c in controls)),
                      'injection_error':err,'precision_check':precision,'interventions':details,
                      'entropy_nats':float(-np.sum(p*np.log(p+1e-300))),
+                     'eos_probability':eos_probability,
                      'chosen_probability':float(p[token]),'sampling_probability':float(sampling_p),
                      'top_tokens':[{'token':engine.piece(int(i)).decode('utf-8','replace'),'probability':float(p[i])} for i in top],
-                     'residual_norms':np.linalg.norm(post,axis=1).tolist()}
+                     'residual_norms':np.linalg.norm(post,axis=1).tolist(),**control_trace}
                 layer_values={}
                 for n in watch:
                     a=bank[n]; k=a['layer']
