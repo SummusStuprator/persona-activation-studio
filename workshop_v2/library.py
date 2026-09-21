@@ -27,7 +27,7 @@ def catalog():
 
 def _read_split(name):
     path=ROOT/'datasets/goemotions/data'/f'{name}.tsv'
-    if not path.exists(): raise ValueError('GoEmotions files are missing. Run fetch_research.py first.')
+    if not path.exists(): raise ValueError('GoEmotions files are missing. Run: studio research-data')
     labels=(path.parent/'emotions.txt').read_text(encoding='utf-8').splitlines()
     rows=[]
     for line in path.read_text(encoding='utf-8').splitlines():

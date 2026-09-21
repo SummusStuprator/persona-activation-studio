@@ -60,3 +60,4 @@ fix_*.py
 native/build/
 compatibility/
 trusted-files.json
+datasets/goemotions/

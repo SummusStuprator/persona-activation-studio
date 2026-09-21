@@ -1,5 +1,5 @@
 ﻿from __future__ import annotations
-import argparse, json, os, shutil, subprocess, sys, time, urllib.request
+import argparse, hashlib, json, os, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 from studio_config import REPO_ROOT, ensure_workspace, paths, load_config
 
@@ -128,6 +128,29 @@ def benchmark_cmd(args):
     if args.only:cmd+=['--only']+args.only
     return run_module('persona.benchmark',cmd)
 
+def research_data_cmd(args):
+    base='https://raw.githubusercontent.com/google-research/google-research/master/goemotions/'
+    files={
+      'data/emotions.txt':'45c3ef86782d2a4d7fedcd6d8c111aa0d0e94720689bd164fac94fefb4495a89',
+      'data/train.tsv':'1c254a142be5c00e80d819b9ae1bbd36d94b2eeb8f4b1271846508d57e57d9c5',
+      'data/dev.tsv':'575489c079c9de1097062a01738f998590d6b7ead66dd1c9fd1d2ba01fd8bc62',
+      'data/test.tsv':'0587b2dd8b27b97352adbfc3fb083d46005c8946657fdc2b1ca8b1cc7f1f8be4',
+    }
+    root=REPO_ROOT/'datasets'/'goemotions'
+    for name,expected in files.items():
+        target=root/name;target.parent.mkdir(parents=True,exist_ok=True)
+        if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest()==expected:
+            print('verified',target);continue
+        print('download',base+name,flush=True)
+        request=urllib.request.Request(base+name,headers={'User-Agent':'PersonaActivationStudio/0.1'})
+        with urllib.request.urlopen(request,timeout=60) as response:data=response.read()
+        actual=hashlib.sha256(data).hexdigest()
+        if actual!=expected:raise RuntimeError(f'GoEmotions checksum mismatch for {name}: {actual}')
+        temporary=target.with_suffix(target.suffix+'.tmp');temporary.write_bytes(data);temporary.replace(target)
+        print('saved',target,len(data))
+    print('GoEmotions ready:',root)
+    return 0
+
 def app_cmd(args):
     cfg=load_config();port=args.port or int(cfg.get('runtime',{}).get('port',8899))
     cmd=[sys.executable,'-m','streamlit','run',str(REPO_ROOT/'studio_app.py'),'--server.address=127.0.0.1',f'--server.port={port}','--server.headless=true','--server.fileWatcherType=none','--browser.gatherUsageStats=false']
@@ -145,6 +168,7 @@ def main(argv=None):
     sub.add_parser('doctor').set_defaults(func=doctor_cmd)
     a=sub.add_parser('app');a.add_argument('--port',type=int);a.set_defaults(func=app_cmd)
     n=sub.add_parser('native');n.add_argument('--cuda',action='store_true');n.set_defaults(func=native_cmd)
+    sub.add_parser('research-data').set_defaults(func=research_data_cmd)
     s=sub.add_parser('scrape');ss=s.add_subparsers(dest='scrape_command',required=True)
     q=ss.add_parser('setup');q.add_argument('--alias',default='studio_x');q.add_argument('--replace',action='store_true');q.add_argument('--from-clipboard',action='store_true')
     ss.add_parser('accounts')

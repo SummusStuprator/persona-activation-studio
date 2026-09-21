@@ -211,3 +211,8 @@ studio verify
 ```
 
 If a sealed source file changes afterward, worker startup reports it instead of silently treating the run as the previous release.
+
+
+### Emotion research data
+
+Run `studio research-data` once before training GoEmotions directions. It downloads the four official filtered GoEmotions split files and verifies pinned SHA-256 checksums.

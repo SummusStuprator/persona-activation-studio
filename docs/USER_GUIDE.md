@@ -270,3 +270,8 @@ I would not put these in the public repository:
 - local native runtime binaries.
 
 The included `.gitignore` is designed around that separation.
+
+
+### Emotion research data
+
+Run `studio research-data` once before training GoEmotions directions. It downloads the four official filtered GoEmotions split files and verifies pinned SHA-256 checksums.

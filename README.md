@@ -221,3 +221,8 @@ No remote repository is configured by the local build process.
 ## License
 
 Studio source is licensed under the MIT License. Third-party components and the paper-derived material retain their own licenses; see THIRD_PARTY.md and paper/LICENSE.
+
+
+### Emotion research data
+
+Run `studio research-data` once before training GoEmotions directions. It downloads the four official filtered GoEmotions split files and verifies pinned SHA-256 checksums.
