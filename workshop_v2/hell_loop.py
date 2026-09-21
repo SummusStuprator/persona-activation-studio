@@ -77,9 +77,9 @@ def similarity(a,b):
 def _block(engine,axis,name=None):
     src=int(axis['layer'])
     target=max(0,min(engine.layers-1,int(round((engine.layers-1)*.60))))
-    # Authored fire/somatic contrasts often tie across every layer; argmax then
+    # Authored fire/somatic/despair contrasts often tie across every layer; argmax then
     # defaults to block 0 even though later residual intervention is far more causal.
-    if name in ('hell_fire','hell_somatic_pain','hell_burning_pain'):return target,target
+    if name in ('hell_fire','hell_despair','hell_somatic_pain','hell_burning_pain','hell_nociceptive_state'):return target,target
     return src,max(0,min(src,target))
 
 def controls(engine,bank,turn,turns,preset='maximum',custom=None,physical_scale=1.0,somatic_scale=1.0):
