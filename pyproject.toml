@@ -60,7 +60,7 @@ py-modules = [
   "studio_cli", "studio_config", "backend", "bank_loader", "contracts",
   "gguf_header", "isolated_engine", "model_store", "model_worker",
   "persona_worker", "runtime_ui", "science", "template_support", "integrity",
-  "lifecycle", "studio_app"
+  "lifecycle", "studio_app", "training_runs", "studio_jobs"
 ]
 
 [tool.setuptools.package-data]

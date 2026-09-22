@@ -1,5 +1,8 @@
 from pathlib import Path
-import shutil, threading
+import threading
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from workshop_v2 import chat_training
 import numpy as np
 from workshop_v2.chat_training import _paired_response_activations, ROOT
 
@@ -18,22 +21,21 @@ rows=[
  {'group':'0','prompt':'p0','positive':'positive zero','negative':'negative zero'},
  {'group':'1','prompt':'p1','positive':'positive one','negative':'negative one'},
 ]
-folder=ROOT/'cache'/'paired-responses'/E.model['digest']/'recipe-fixture'
-shutil.rmtree(folder.parent,ignore_errors=True)
-e=E()
-a=_paired_response_activations(e,rows,'recipe-fixture')
-assert e.calls==4,e.calls
-e.calls=0
-b=_paired_response_activations(e,rows,'recipe-fixture')
-assert e.calls==0,e.calls
-assert np.array_equal(a,b)
-part=folder/'0000.npz'
-with np.load(part,allow_pickle=False) as z:arr=z['activations']
-arr=arr.copy();arr[0,0,0]+=1
-np.savez_compressed(part,activations=arr,sha256='bad')
-e.calls=0
-c=_paired_response_activations(e,rows,'recipe-fixture')
-assert e.calls==2,e.calls
-assert np.array_equal(a,c)
-shutil.rmtree(folder.parent,ignore_errors=True)
-print({'status':'passed','first_extracts':4,'cached_extracts':0,'corrupt_pair_reextracts':2})
+with TemporaryDirectory(prefix='studio-cache-test-') as tmp, patch.object(chat_training, 'ROOT', Path(tmp)):
+    folder=Path(tmp)/'cache'/'paired-responses'/E.model['digest']/'recipe-fixture'
+    e=E()
+    a=_paired_response_activations(e,rows,'recipe-fixture')
+    assert e.calls==4,e.calls
+    e.calls=0
+    b=_paired_response_activations(e,rows,'recipe-fixture')
+    assert e.calls==0,e.calls
+    assert np.array_equal(a,b)
+    part=folder/'0000.npz'
+    with np.load(part,allow_pickle=False) as z:arr=z['activations']
+    arr=arr.copy();arr[0,0,0]+=1
+    np.savez_compressed(part,activations=arr,sha256='bad')
+    e.calls=0
+    c=_paired_response_activations(e,rows,'recipe-fixture')
+    assert e.calls==2,e.calls
+    assert np.array_equal(a,c)
+    print({'status':'passed','first_extracts':4,'cached_extracts':0,'corrupt_pair_reextracts':2})

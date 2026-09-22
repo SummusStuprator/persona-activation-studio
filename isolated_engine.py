@@ -163,7 +163,7 @@ class Engine:
                 mode, manual = ('CPU', 0) if gpu_layers == 0 else ('Manual', gpu_layers)
             profile = 'runtime-compat' if model.get('architecture') in ('qwen35','qwen35moe','mistral3','gemma4','nanbeige') else 'runtime'
             candidate = ROOT/'native'/profile
-            self.runtime_path = candidate if candidate.is_dir() and any(candidate.iterdir()) else ROOT/'native'/'runtime'
+            self.runtime_path = Path(os.environ['STUDIO_NATIVE_RUNTIME']).expanduser().resolve() if os.environ.get('STUDIO_NATIVE_RUNTIME') else (candidate if candidate.is_dir() and any(candidate.iterdir()) else ROOT/'native'/'runtime')
             model = dict(model, runtime_profile=profile)
             self.log_path = ROOT/'logs'/('model-'+model['digest'][:23]+'.log')
             self.load_plan = plan_load(model, context, mode, manual)
@@ -173,6 +173,11 @@ class Engine:
             errors = []
             for count in attempts:
                 try:
+                    actual_mode='CPU' if count==0 else 'Manual'
+                    # Recheck host RAM when fewer GPU layers (or CPU fallback) are used.
+                    guard_load(model,context=context,mode=actual_mode,manual=count)
+                    actual_plan=plan_load(model,context,actual_mode,count)
+                    self.load_plan.update(actual_plan,requested_mode=mode)
                     self._start()
                     self._call('open', model, gpu_layers=count, context=context)
                     self.load_plan.update(gpu_layers=count, fallback_errors=errors)

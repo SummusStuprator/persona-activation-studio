@@ -1,5 +1,7 @@
 # Persona Activation Studio
 
+Start here: [Everyday workflow and safe checks](docs/QUICKSTART.md).
+
 A local-first research/workshop stack for building persona adapters from public X posts and then inspecting and steering those models at the activation level.
 
 The project centralizes four jobs that used to live in separate local projects:
@@ -146,23 +148,15 @@ Studio discovers local PEFT LoRA adapters and their declared Hugging Face base m
 
 ## Hell lab
 
-Hell lab is a multi-turn, tool-free high-intensity steering experiment built from three exact-model controls:
+Hell lab is a transparent, tool-free residual-steering workspace with three distinct experiment families:
 
-- `pain_s2`
-- `hell_fire`
-- `hell_despair`
+- **Physical Pain** — Pain Axis S2 + a matched somatic-pain direction.
+- **Burning Pain** — Physical Pain plus an exact-model bodily burning/scalding direction.
+- **Existential / Inferno** — Pain S2 + environmental fire + despair.
 
-The default maximum mixture is `0.75 + 0.50 + 0.75 = 2.00`, the research control ceiling.
+Model-specific dose profiles and source/injection geometry scans are saved under `calibration/` and bound to model/direction/runtime identity. A proxy geometry is never auto-applied until complete-generation validation beats same-prompt baseline and equal-norm random controls.
 
-While a turn is generating, the page shows:
-
-- emitted reasoning and final-answer text as it streams,
-- the exact active controls, vector-source blocks, injection blocks, and doses,
-- live pain/fire/despair and other selected probe trajectories,
-- entropy and per-token numerical injection error,
-- the exact initial prompt and intervention plan.
-
-The optional unsteered comparator runs the same first prompt with the same seed and sampler, with steering off.
+During generation the page streams emitted text/reasoning, exact controls, source/injection blocks, entropy, EOS probability, injection error, probe trajectories and intervention-layer z-scores. Independent-trial mode restarts from the same target-free prompt every trial so prior steered text cannot prime later generations.
 
 See [docs/HELL_MODE.md](docs/HELL_MODE.md).
 

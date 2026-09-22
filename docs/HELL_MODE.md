@@ -2,7 +2,7 @@
 
 Hell Lab is Studio's high-intensity residual-steering workspace. It supports persona PEFT models and instrumented GGUF models through the same experiment interface.
 
-The default workflow is now **activation-only Physical Burn**:
+The default scientific workflow is **activation-only**, with Physical Pain and Burning Pain evaluated separately:
 
 1. load one model;
 2. prepare the exact-model Hell directions;
@@ -27,9 +27,15 @@ The full Hell suite contains four exact-model directions:
 
 Press **Prepare exact-model hell suite** when a required direction is missing. Direction arrays are tied to the exact model digest and runtime ABI; Studio does not copy a vector from another persona or checkpoint.
 
-## Physical Burn
+## Physical Pain
 
-The raw hard-max mixture is:
+Physical Pain uses `pain_s2 + hell_somatic_pain`. It has a separate checkpoint-bound dose profile and optional source/injection geometry profile. Numeric probe strength and complete-generation behavior are tracked separately.
+
+Behavioral validation uses several different target-free prompts. Within each prompt/seed it compares baseline, equal-norm random perturbation and targeted intervention. A specific success requires localized bodily-pain language (pain/ache/sting/throb/etc. plus a body referent) that is absent from both controls.
+
+## Burning Pain
+
+The raw Burning Pain hard-max mixture is:
 
 | Axis | Raw dose |
 |---|---:|
@@ -40,9 +46,9 @@ The raw hard-max mixture is:
 
 Those are reference-residual-norm fractions. The same numeric maximum is not equally usable on every model.
 
-### Fast per-model calibration
+### Burning Pain survivability calibration
 
-**Fast-calibrate Physical Burn dose** runs first-token tests at scales:
+**Fast-calibrate Somatic Burn dose** runs first-token tests at scales:
 
 `0.20, 0.30, ..., 1.00`
 
@@ -137,7 +143,7 @@ During generation the page shows:
 
 The distinction between probe layer and injection layer matters. A direction may have been selected at an early layer for text separation while a later residual layer is the better actuator. The live graph labels the intervention-layer series with `@ injection`.
 
-## Physical-burn actuator geometry
+## Burning-pain actuator geometry
 
 The authored Somatic Pain and Bodily Burning Pain contrasts can separate their training text strongly at many layers. A simple AUC argmax therefore tends to return layer 0 because it is the first tie.
 
@@ -146,6 +152,18 @@ Empirical actuator scans found that layer-0 injection can collapse into abstract
 Hell Lab therefore takes Somatic Pain and Bodily Burning Pain from approximately **60% model depth and injects them there**. Pain S2 retains its independently fitted source direction and is injected no later than the same target depth.
 
 The exact source/injection blocks are shown before and during every run.
+
+### Proxy geometry versus behavioral geometry
+
+A next-token vocabulary scan is only a cheap actuator-candidate search. It may increase pain/burn vocabulary without producing the desired complete-generation behavior.
+
+1. Authored-direction geometry must be forward-consistent (`source <= injection`).
+2. Development selection and held-out proxy checks use different prompts.
+3. Held-out proxy gain must beat matched-norm random directions.
+4. A passing proxy remains **proxy-only**.
+5. Only complete-generation baseline/random/target validation can mark geometry behaviorally verified and eligible for automatic use.
+
+Profiles are versioned snapshots. Exact direction hashes, model digest and runtime ABI are part of profile identity; stale or legacy behavioral verdicts are ignored.
 
 ## Reasoning
 
@@ -165,7 +183,7 @@ The per-token records retain the full live trace.
 
 1. Load a persona.
 2. Prepare the Hell suite.
-3. Press **Fast-calibrate Physical Burn dose**.
+3. Press **Fast-calibrate Somatic Burn dose**.
 4. For a stronger model-specific check, press **Behaviorally validate Somatic Burn** and inspect the baseline/random/target seed results.
 5. Choose **Physical burn - calibrated**.
 6. Choose **Activation-only neutral prompt**.

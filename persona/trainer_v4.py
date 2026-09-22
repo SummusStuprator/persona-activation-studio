@@ -653,7 +653,7 @@ def load_anchor_rows(path: Path, max_rows: int = 96) -> list[PreparedRow]:
                 task="anchor",
                 quality=1.6,
                 low_info=False,
-                split_group=f"anchor:{stable_hash(prompt)}",
+                split_group=f"anchor:{stable_hash(key)}",
                 date="",
             )
         )

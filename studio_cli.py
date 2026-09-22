@@ -1,10 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import argparse, hashlib, json, os, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 from studio_config import REPO_ROOT, ensure_workspace, paths, load_config
 
 def run_module(module,args):
-    cmd=[sys.executable,'-m',module]+[str(x) for x in args]
+    python=load_config()['python'] if module in ('persona.trainer_v4','persona.benchmark') else sys.executable
+    cmd=[str(python),'-m',module]+[str(x) for x in args]
     print('+',' '.join(cmd),flush=True)
     return subprocess.call(cmd,cwd=REPO_ROOT)
 
@@ -93,29 +94,35 @@ def _latest_dataset(p):
     return max(dirs,key=lambda d:d.stat().st_mtime)
 
 def train_cmd(args):
-    p=ensure_workspace();dataset=Path(args.dataset).expanduser().resolve() if args.dataset else _latest_dataset(p)
-    config=Path(args.config).expanduser().resolve() if args.config else _profiles_path()
-    stamp=time.strftime('%Y%m%d-%H%M%S')
-    staging=p.staging/(args.profile+'-'+stamp)
-    cmd=['train','--dataset-root',str(dataset),'--config',str(config),'--profile',args.profile,'--output',str(staging),'--model',args.model]
-    anchor=Path(args.anchors).expanduser().resolve() if args.anchors else p.anchors/(args.profile+'.json')
-    if anchor.is_file():cmd+=['--anchors',str(anchor)]
+    from training_runs import resolve_training_run
+    p=ensure_workspace()
+    if not args.resume and not args.dataset and not any(p.datasets.iterdir()):
+        args.dataset=load_config().get('runtime',{}).get('default_dataset')
+    staging,spec=resolve_training_run(args,p)
+    stamp=staging.name[len(args.profile)+1:]
+    cmd=['train','--dataset-root',spec['dataset'],'--config',spec['config'],
+         '--profile',args.profile,'--output',str(staging),'--model',spec['model']]
+    if spec.get('anchors'):cmd+=['--anchors',spec['anchors']]
     if args.resume:cmd+=['--resume']
-    if args.max_steps:cmd+=['--max-steps',str(args.max_steps)]
-    code=run_module('persona.trainer_v4',cmd)
+    if spec['max_steps']:cmd+=['--max-steps',str(spec['max_steps'])]
+    print('Resuming:' if args.resume else 'Training run:',staging,flush=True)
+    from workshop_v2.resource_policy import ModelLaunchLease,ModelLease,checkpoint
+    with ModelLaunchLease(),ModelLease():
+        checkpoint()
+        code=run_module('persona.trainer_v4',cmd)
     if code:return code
     report_path=staging/'training_report.json'
     if not report_path.is_file():raise RuntimeError('Training finished without training_report.json')
     report=json.loads(report_path.read_text(encoding='utf-8'))
     if report.get('install_gate_pass') and not args.no_install:
-        slug=args.profile+'-'+args.model.split('/')[-1].replace(':','-')+'-'+stamp
+        slug=args.profile+'-'+spec['model'].split('/')[-1].replace(':','-')+'-'+stamp
         dest=p.models/slug
         dest.mkdir(parents=True,exist_ok=False)
         shutil.copytree(staging/'adapter',dest/'adapter')
         for name in ('training_report.json','run_state.json','test_generations.jsonl','prepared_test.jsonl','prepared_validation.jsonl'):
             src=staging/name
             if src.is_file():shutil.copy2(src,dest/name)
-        manifest={'profile':args.profile,'base_model':args.model,'source_staging':str(staging),'installed_at':time.strftime('%Y-%m-%dT%H:%M:%S'),'install_gate_pass':True}
+        manifest={'profile':args.profile,'base_model':spec['model'],'source_staging':str(staging),'installed_at':time.strftime('%Y-%m-%dT%H:%M:%S'),'install_gate_pass':True}
         (dest/'model_manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
         print('Installed gate-passing adapter without intermediate checkpoints:',dest)
     else:print('Candidate kept in staging:',staging)
@@ -161,11 +168,26 @@ def native_cmd(args):
     if os.name=='nt':return subprocess.call(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(script)]+(['-Cuda'] if args.cuda else []),cwd=REPO_ROOT)
     env=dict(os.environ,CUDA='ON' if args.cuda else 'OFF');return subprocess.call(['bash',str(script)],cwd=REPO_ROOT,env=env)
 
+def check_cmd(args):
+    checks=[['-m','unittest','discover','-s','tests','-p','test_*.py','-v']]
+    checks += [[str(REPO_ROOT/'tests'/name)] for name in (
+        'physical_profile_smoke.py','pair_cache_smoke.py',
+        'physical_recipe_quality.py','ui_smoke.py')]
+    for tail in checks:
+        print('CHECK:', ' '.join(tail), flush=True)
+        code=subprocess.call([sys.executable,'-X','utf8']+tail,cwd=REPO_ROOT)
+        if code:
+            print('FAILED: stopping at the first failed check.',flush=True)
+            return code
+    print('PASS: reliability, isolated profile/cache, recipes, and all 14 unloaded UI pages. No model training or inference was started.',flush=True)
+    return 0
+
 def main(argv=None):
     ap=argparse.ArgumentParser(prog='studio',description='Persona Activation Studio')
     sub=ap.add_subparsers(dest='command',required=True)
     sub.add_parser('init').set_defaults(func=init_cmd)
     sub.add_parser('doctor').set_defaults(func=doctor_cmd)
+    sub.add_parser('check',help='Run isolated, model-free software checks').set_defaults(func=check_cmd)
     a=sub.add_parser('app');a.add_argument('--port',type=int);a.set_defaults(func=app_cmd)
     n=sub.add_parser('native');n.add_argument('--cuda',action='store_true');n.set_defaults(func=native_cmd)
     sub.add_parser('research-data').set_defaults(func=research_data_cmd)
@@ -179,10 +201,12 @@ def main(argv=None):
     s.set_defaults(func=scrape_cmd)
     d=sub.add_parser('dataset');ds=d.add_subparsers(dest='dataset_command',required=True);q=ds.add_parser('build');q.add_argument('--revision');q.add_argument('--output');q.add_argument('--overwrite',action='store_true');q.set_defaults(func=dataset_cmd)
     pr=sub.add_parser('profile');ps=pr.add_subparsers(dest='profile_command',required=True);ps.add_parser('list');q=ps.add_parser('add');q.add_argument('name');q.add_argument('--dataset-profile');q.add_argument('--tier',default='core',choices=['core','extended']);q.add_argument('--max-steps',type=int,default=0);q.add_argument('--max-rows',type=int,default=0);q.add_argument('--max-length',type=int,default=0);pr.set_defaults(func=profile_cmd)
-    t=sub.add_parser('train');t.add_argument('profile');t.add_argument('--dataset');t.add_argument('--config');t.add_argument('--model',default='Qwen/Qwen3-4B');t.add_argument('--anchors');t.add_argument('--max-steps',type=int,default=0);t.add_argument('--resume',action='store_true');t.add_argument('--no-install',action='store_true');t.set_defaults(func=train_cmd)
+    t=sub.add_parser('train');t.add_argument('profile');t.add_argument('--dataset');t.add_argument('--config');t.add_argument('--model',help='Base model; defaults to Qwen/Qwen3-4B for new runs, or the pinned model on resume');t.add_argument('--anchors');t.add_argument('--max-steps',type=int,default=0);t.add_argument('--resume',action='store_true');t.add_argument('--run-dir',help='Exact unfinished Studio run to resume');t.add_argument('--no-install',action='store_true');t.set_defaults(func=train_cmd)
     b=sub.add_parser('benchmark');b.add_argument('--base-model',default='Qwen/Qwen3-4B');b.add_argument('--quick',action='store_true');b.add_argument('--only',nargs='*');b.set_defaults(func=benchmark_cmd)
     sub.add_parser('seal').set_defaults(func=lambda a:(print('SEALED',len(__import__('integrity').seal_release()['files'])) or 0))
     sub.add_parser('verify').set_defaults(func=lambda a:(print(__import__('integrity').verify_release(native=True)) or 0))
-    args=ap.parse_args(argv);return int(args.func(args) or 0)
+    args=ap.parse_args(argv)
+    try:return int(args.func(args) or 0)
+    except (ValueError,FileNotFoundError) as exc:ap.error(str(exc))
 
 if __name__=='__main__':raise SystemExit(main())

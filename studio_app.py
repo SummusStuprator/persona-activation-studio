@@ -3,7 +3,7 @@ import json, os, subprocess, sys, time
 from pathlib import Path
 import pandas as pd
 import streamlit as st
-from studio_config import REPO_ROOT, ensure_workspace
+from studio_config import REPO_ROOT, ensure_workspace, load_config
 
 st.set_page_config(page_title='Persona Activation Studio',page_icon='🧠',layout='wide')
 P=ensure_workspace()
@@ -12,36 +12,33 @@ def jobs_dir():
     p=P.workspace/'jobs';p.mkdir(parents=True,exist_ok=True);return p
 
 def launch_job(kind,args):
-    stamp=time.strftime('%Y%m%d-%H%M%S');folder=jobs_dir();log=folder/f'{stamp}-{kind}.log';meta=folder/f'{stamp}-{kind}.json'
-    command=[sys.executable,'-m','studio_cli']+list(args)
-    out=open(log,'w',encoding='utf-8',buffering=1)
-    proc=subprocess.Popen(command,cwd=REPO_ROOT,stdout=out,stderr=subprocess.STDOUT,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
-    meta.write_text(json.dumps({'pid':proc.pid,'kind':kind,'command':command,'log':str(log),'started':time.time()},indent=2),encoding='utf-8')
-    return proc.pid,log
+    from studio_jobs import launch
+    try:
+        return launch(REPO_ROOT,jobs_dir(),kind,args)
+    except (OSError,ValueError) as exc:
+        st.error(str(exc));st.stop()
 
 @st.cache_data(ttl=30)
 def quick_ollama_count():
-    try:
-        import urllib.request
-        host=os.environ.get('OLLAMA_HOST','http://127.0.0.1:11434').rstrip('/')
-        with urllib.request.urlopen(host+'/api/tags',timeout=2) as r:
-            return len(json.load(r).get('models',[]))
-    except Exception:
-        return 0
+    from model_store import grouped_inventory
+    return len(grouped_inventory()[0])
+
 
 def render_jobs():
     rows=[]
     for p in sorted(jobs_dir().glob('*.json'),reverse=True)[:20]:
         try:
-            d=json.loads(p.read_text(encoding='utf-8'));pid=int(d['pid'])
-            import psutil;running=psutil.pid_exists(pid)
-            rows.append({'kind':d['kind'],'pid':pid,'running':running,'started':time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(d['started'])),'log':d['log']})
+            from studio_jobs import read_state
+            d=read_state(p)
+            rows.append({'kind':d['kind'],'pid':d.get('pid'),'status':d['status'],'exit_code':d.get('return_code'),'started':time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(d['started'])),'log':d['log']})
         except Exception:pass
     if rows:st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
+    else:st.info('No jobs yet. Use the collection, dataset, or training page to start one.')
     logs=sorted(jobs_dir().glob('*.log'),key=lambda x:x.stat().st_mtime,reverse=True)
     if logs:
         pick=st.selectbox('Job log',[str(x.name) for x in logs],key='joblog')
-        text=(jobs_dir()/pick).read_text(encoding='utf-8',errors='replace')
+        from studio_jobs import log_tail
+        text=log_tail(jobs_dir()/pick)
         st.code(text[-12000:],language=None)
 
 page=st.sidebar.radio('Studio',['Overview','Collect X data','Build dataset','Train persona','Chat','Hell lab','Activations','Emotion library','Concept builder','Experiments','J-space','Paper reproduction','Jobs','Guide'])
@@ -101,12 +98,16 @@ elif page=='Train persona':
         pid,log=launch_job('train-'+name,args);st.success(f'Started PID {pid}: {log.name}')
     render_jobs()
 
-elif page in ('Chat','Hell lab'):
+elif page in ('Chat','Hell lab','Activations','Emotion library','Concept builder','Experiments','J-space','Paper reproduction'):
     from workshop_v2.runtime import get_engine
     from runtime_ui import render as model_loader
     from science import load_bank
     engine=get_engine()
     st.title(page)
+    from workshop_v2.live_ui import manager
+    if manager().active() and page != 'Chat':
+        st.warning('A live generation owns the model. Return to Chat and stop it before using another workspace.')
+        st.stop()
     if not model_loader(engine):
         st.write('Choose a GGUF or persona adapter in the sidebar and load it.')
     else:
@@ -114,8 +115,23 @@ elif page in ('Chat','Hell lab'):
         st.caption(f"Loaded: {engine.model['name']} · {engine.layers} blocks · {len(bank)} directions")
         if page=='Hell lab':
             from workshop_v2.hell_loop import render as hell;hell(engine,bank)
-        else:
+        elif page=='Chat':
             from workshop_v2.live_ui import chat;chat(engine,bank)
+        else:
+            from workshop_v2.ui import explore, library_ui
+            from workshop_v2.custom_ui import concepts
+            from workshop_v2.universal_experiments import render as experiments
+            from workshop_v2.jspace_ui import jacobian_ui
+            from workshop_v2.paper_ui import paper_ui
+            from workshop_v2.portable_paper_ui import render as portable_paper
+            routes={'Activations':explore,'Emotion library':library_ui,
+                    'Concept builder':concepts,'Experiments':experiments,
+                    'J-space':jacobian_ui,
+                    'Paper reproduction':portable_paper if engine.model.get('backend')=='persona_peft' else paper_ui}
+            if page=='J-space' and engine.model.get('backend')=='persona_peft':
+                st.info('J-space currently requires a native GGUF model. Other activation workspaces support persona adapters.')
+            else:
+                routes[page](engine,bank)
 
 elif page=='Jobs':
     st.title('Background jobs');render_jobs()

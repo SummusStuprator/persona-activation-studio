@@ -19,7 +19,7 @@ def _profile_paths(engine):
     paths=[]
     if base.is_file():paths.append(base)
     if base.parent.exists():paths.extend(base.parent.glob('somatic-geometry.*.json'))
-    return sorted(set(paths),key=lambda x:x.stat().st_mtime_ns if x.exists() else 0,reverse=True)
+    return sorted(set(paths),key=lambda x:((x.stat().st_mtime_ns if x.exists() else 0), 1 if x.name!=base.name else 0),reverse=True)
 
 def legacy(engine,bank):
     if not engine.model.get('digest'):return None

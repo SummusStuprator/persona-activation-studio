@@ -24,8 +24,7 @@ uploads/
 cache/
 preparation/
 validation/
-calibration/chat-profiles/
-calibration/actuator-profiles/
+calibration/
 logs/
 reports/
 backups/
@@ -62,3 +61,4 @@ compatibility/
 trusted-files.json
 datasets/goemotions/
 concepts/recipes/
+native/build*/

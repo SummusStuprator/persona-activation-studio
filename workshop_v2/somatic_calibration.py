@@ -19,7 +19,7 @@ def _profile_paths(engine):
     paths=[]
     if base.is_file():paths.append(base)
     if base.parent.exists():paths.extend(base.parent.glob('somatic-burn.*.json'))
-    return sorted(set(paths),key=lambda x:x.stat().st_mtime_ns if x.exists() else 0,reverse=True)
+    return sorted(set(paths),key=lambda x:((x.stat().st_mtime_ns if x.exists() else 0), 1 if x.name!=base.name else 0),reverse=True)
 
 def load(engine,bank):
     digest=engine.model.get('digest')
@@ -35,6 +35,10 @@ def load(engine,bank):
             v['behaviorally_verified']=False
             v['behavioral_successes']=0
             v['behavioral_status']='Legacy behavioral verdict ignored; re-run localized burn validation.'
+        elif v.get('behavioral_validation'):
+            count=len(v['behavioral_validation'])
+            verdict='Passed' if v.get('behaviorally_verified') else 'Did not pass'
+            v['behavioral_status']=f"{verdict} current lexical-specificity screen ({v.get('behavioral_successes',0)}/{count} trials)."
         return v
     return None
 
@@ -184,6 +188,8 @@ def behavioral_scan(engine,bank,progress=None,screen_seed=6200,validation_seeds=
                     'behavioral_validation':validation,'behavioral_successes':successes,
                     'behaviorally_verified':verified,
                     'behavioral_rule':'Across three different target-free prompts, target must emit >=12 tokens, avoid repetition guard, contain a burn/scald/sear/etc. term localized to a body term, while same-prompt baseline/random do not; targeted burn count and weighted score must exceed both controls on at least 2 of 3 validation prompts.'})
+    verdict='Passed' if verified else 'Did not pass'
+    profile['behavioral_status']=f'{verdict} current lexical-specificity screen ({successes}/{len(validation)} trials).'
     if verified:
         profile['recommended_scale']=chosen;profile['recommended_total_dose']=2*chosen
     _atomic(_path(engine),profile)
