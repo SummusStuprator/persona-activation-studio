@@ -68,10 +68,20 @@ def fit_axis(engine: Engine, rows: list[dict], x: np.ndarray, labels: np.ndarray
     with threadpool_limits(limits=max(1,int(os.environ.get("WORKSHOP_CPU_THREADS","2")))):
         for layer in range(engine.layers):
             scores = []
-            for fit, validate in folds:
-                v = direction(x[train[fit], layer], labels[train[fit]])
-                scores.append(roc_auc_score(labels[train[validate]], x[train[validate], layer] @ v))
-            v = direction(x[train, layer], labels[train])
+            try:
+                for fit, validate in folds:
+                    v = direction(x[train[fit], layer], labels[train[fit]])
+                    scores.append(roc_auc_score(labels[train[validate]], x[train[validate], layer] @ v))
+                v = direction(x[train, layer], labels[train])
+            except ValueError:
+                # Some architectures (hybrid/conv stacks) expose a constant or zero
+                # residual at a shallow layer; skip it (cv=-1 keeps it unselectable) but
+                # keep the axis contract: unit placeholder direction, positive scale/norm.
+                placeholder = np.zeros(x.shape[-1]); placeholder[0] = 1.0
+                directions.append(placeholder); centers.append(0.0)
+                scales.append(1.0); norms.append(1.0); cv_scores.append(-1.0)
+                if progress: progress(layer + 1, engine.layers, 'Skipped degenerate layer: ' + name)
+                continue
             projection = x[train, layer] @ v
             directions.append(v)
             centers.append(projection.mean())
