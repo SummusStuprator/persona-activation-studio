@@ -28,6 +28,7 @@ def main():
                         import torch
                         torch.set_num_threads(int(os.environ.get('WORKSHOP_CPU_THREADS','2')))
                     state={k:getattr(engine,k,None) for k in ('model','dim','layers','vocab_size','context','cuda_available','abi')}
+                    if method != 'open': state = {}
                     state['loaded']=bool(engine.handle)
                     conn.send({'ok':True,'value':value,'state':state})
                 except Exception as exc:

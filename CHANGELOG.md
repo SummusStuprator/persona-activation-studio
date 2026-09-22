@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Cache token text and end-of-generation metadata within each worker lifetime.
+- Send full worker metadata only after model loading.
+- Apply live steering only when controls or the generation phase change.
+- Use storage-aware FP16 checks in the live generation path.
+- Add transport cache, worker lifecycle, control revision, and cancellation regressions.
+
 ## 0.3.0
 
 - Added CUDA BF16 and NF4 persona inference with Auto/CPU/CUDA selection.

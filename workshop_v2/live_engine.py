@@ -40,6 +40,7 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
     decoder=codecs.getincrementaldecoder('utf-8')('replace')
     seen=set(watch); revision=None; controls=[]; table=None; settings=None
     first=None; last=None; terminal=None
+    applied_configuration=None
     with engine.lock:
         try:
             engine.clear_steering(); engine.reset()
@@ -60,19 +61,17 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
                 enabled=settings['phase']=='all' or settings['phase']==phase
                 if scope=='all' and settings['phase']!='all':
                     raise ValueError('Phase-selective steering requires reply-only scope.')
-                configure(engine,table,controls,enabled)
+                configuration=(revision,enabled)
+                if configuration != applied_configuration:
+                    configure(engine,table,controls,enabled)
+                    applied_configuration=configuration
                 current=tokens if step==0 and scope=='all' else (tokens[-1:] if step==0 else np.array([generated[-1]],np.int32))
                 engine.evaluate(current)
                 pre,post=engine.capture(0),engine.capture(1)
                 if not np.isfinite(pre).all() or not np.isfinite(post).all():
                     raise ValueError('Non-finite activations; generation stopped.')
-                precision = None
-                if engine.model.get('activation_dtype')=='bfloat16':
-                    from .persona_precision import rounding_metrics
-                    precision=rounding_metrics(table,controls,pre,post,enabled)
-                    err=precision['max_excess_error']
-                else:
-                    err=check_injection(table,controls,pre,post,enabled)
+                from .tensor_checks import check
+                err,precision=check(engine,table,controls,pre,post,enabled)
                 logits=engine.logits()
                 if first is None:first=pre.copy()
                 last=post.copy()

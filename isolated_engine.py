@@ -28,6 +28,8 @@ class Engine:
         self.load_plan = {}; self.timeout = 300
         self.log_path = ROOT / 'logs' / 'model-worker.log'
         self.log_path.parent.mkdir(parents=True,exist_ok=True)
+        self._piece_cached = functools.lru_cache(maxsize=4096)(lambda token: self._call('piece', token))
+        self._eog_cached = functools.lru_cache(maxsize=4096)(lambda token: self._call('is_eog', token))
         atexit.register(self.close)
 
     @property
@@ -86,8 +88,20 @@ class Engine:
         if name in METHODS: return functools.partial(self._call, name)
         raise AttributeError(name)
 
+    def piece(self, token):
+        with self.lock:
+            if not self.handle: raise RuntimeError('Load a model first.')
+            return self._piece_cached(int(token))
+
+    def is_eog(self, token):
+        with self.lock:
+            if not self.handle: raise RuntimeError('Load a model first.')
+            return self._eog_cached(int(token))
+
     def close(self):
         with self.lock:
+            self._piece_cached.cache_clear()
+            self._eog_cached.cache_clear()
             self._loaded = False
             process, connection = self.process, self.connection
             self.process = self.connection = None

@@ -26,6 +26,7 @@ def main():
                     result = getattr(engine,method)(*args,**kwargs)
                     state = {k:getattr(engine,k,None) for k in
                              ('model','dim','layers','vocab_size','context','cuda_available','abi')}
+                    if method != 'open': state = {}
                     state['loaded'] = bool(engine.handle)
                     connection.send({'ok':True,'value':result,'state':state})
                 except Exception as exc:
