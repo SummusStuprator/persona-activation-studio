@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import os
 from streamlit.testing.v1 import AppTest
-ROOT = Path(__file__).resolve().parents[1]
+from studio_paths import CODE_ROOT as ROOT
 PAGES = ('Overview', 'Collect X data', 'Build dataset', 'Train persona',
          'Chat', 'Hell lab', 'Activations', 'Emotion library', 'Concept builder',
          'Experiments', 'J-space', 'Paper reproduction', 'Jobs', 'Guide')

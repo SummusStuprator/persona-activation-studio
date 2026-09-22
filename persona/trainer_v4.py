@@ -1107,7 +1107,8 @@ def generate_response(
     set_seed(seed)
     text = apply_chat(tokenizer, messages, add_generation_prompt=True)
     encoded = tokenizer(text, return_tensors="pt", add_special_tokens=False)
-    encoded = {key: value.to(model.device) for key, value in encoded.items()}
+    encoded = {key: value.to(model.device) for key, value in encoded.items()
+               if key in ("input_ids", "attention_mask")}
     was_training = model.training
     old_cache = getattr(model.config, "use_cache", False)
     model.eval()
@@ -1122,14 +1123,14 @@ def generate_response(
     }
     if do_sample:
         kwargs.update(temperature=temperature, top_p=top_p, top_k=top_k)
-    with torch.inference_mode():
-        generated = model.generate(**kwargs)
-    continuation = generated[0, encoded["input_ids"].shape[1]:]
-    response = tokenizer.decode(continuation, skip_special_tokens=True).strip()
-    model.config.use_cache = old_cache
-    if was_training:
-        model.train()
-    return response
+    try:
+        with torch.inference_mode():
+            generated = model.generate(**kwargs)
+        continuation = generated[0, encoded["input_ids"].shape[1]:]
+        return tokenizer.decode(continuation, skip_special_tokens=True).strip()
+    finally:
+        model.config.use_cache = old_cache
+        model.train(was_training)
 
 
 def normalized_code(text: str) -> str:

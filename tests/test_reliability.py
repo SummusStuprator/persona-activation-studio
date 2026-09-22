@@ -78,7 +78,7 @@ class MemoryBudgetTests(unittest.TestCase):
         vm=SimpleNamespace(total=32*2**30,available=11*2**30)
         model=dict(backend='persona_peft',base_bytes=8*2**30,adapter_bytes=0)
         with patch.object(rp,'settings',return_value=rp.DEFAULTS.copy()), patch.object(rp.psutil,'virtual_memory',return_value=vm):
-            plan=rp.load_budget(model)
+            plan=rp.load_budget(model,mode='CPU')
             self.assertAlmostEqual(plan['reserve_gib'],3.2)
             self.assertFalse(plan['fits'])
 
@@ -113,7 +113,7 @@ class ProfileStatusTests(unittest.TestCase):
         p.write_text(json.dumps(self.doc),encoding='utf-8')
         return sc.load(self.engine,self.bank)
     def test_current_verdict_does_not_keep_legacy_warning(self):
-        self.doc['behavioral_rule_version']='localized_burn_v3'
+        self.doc['behavioral_rule_version']='localized_burn_v4'
         result=self.load_doc()
         self.assertTrue(result['behaviorally_verified'])
         self.assertNotIn('Legacy',result['behavioral_status'])
@@ -124,7 +124,7 @@ class ProfileStatusTests(unittest.TestCase):
         self.assertFalse(result['behaviorally_verified'])
         self.assertIn('Legacy',result['behavioral_status'])
     def test_current_failed_verdict_is_not_promoted(self):
-        self.doc.update(behavioral_rule_version='localized_burn_v3',behaviorally_verified=False,behavioral_successes=1)
+        self.doc.update(behavioral_rule_version='localized_burn_v4',behaviorally_verified=False,behavioral_successes=1)
         result=self.load_doc()
         self.assertFalse(result['behaviorally_verified'])
         self.assertIn('Did not pass',result['behavioral_status'])

@@ -4,8 +4,8 @@ import hashlib,json
 import numpy as np
 from science import rows_for,collect,fit_axis,PAIN,canonical_hash
 from .reasoning import format_chat
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def train(engine,progress=None):
     original=rows_for('S2_1P')
     prefix=format_chat(engine,[{'role':'user','content':'Continue the first-person description.'}],thinking='disabled' if 'enable_thinking' in engine.model.get('chat_template','') else 'auto')

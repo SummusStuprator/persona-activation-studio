@@ -1,7 +1,8 @@
 from __future__ import annotations
 import json,time,re,os,uuid
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 PROFILE_KIND='physical_burn_survivability_v2'
 SCALES=(.2,.3,.4,.5,.6,.7,.8,.9,1.0)
 NEUTRAL_PROMPTS=(
@@ -31,7 +32,7 @@ def load(engine,bank):
         hashes=v.get('arrays_sha256',{})
         if any(n not in bank or hashes.get(n)!=bank[n]['meta'].get('arrays_sha256') for n in ('pain_s2','hell_somatic_pain','hell_burning_pain')):continue
         v=dict(v);v['_profile_file']=str(p)
-        if v.get('behavioral_rule_version')!='localized_burn_v3':
+        if v.get('behavioral_rule_version')!='localized_burn_v4':
             v['behaviorally_verified']=False
             v['behavioral_successes']=0
             v['behavioral_status']='Legacy behavioral verdict ignored; re-run localized burn validation.'
@@ -85,28 +86,7 @@ def scan(engine,bank,progress=None,seed=5050):
     doc={'profile_kind':PROFILE_KIND,'digest':engine.model['digest'],'abi':engine.abi,'model':engine.model['name'],'arrays_sha256':{n:bank[n]['meta'].get('arrays_sha256') for n in required},'prompt':user,'seed':seed,'rows':rows,'recommended_scale':recommended,'recommended_total_dose':2*recommended,'selection_rule':'Highest scale whose calibration seed does not sample EOS on token 1 and whose first-token residual change is below 0.90x. Falls back to the lowest non-EOS scale.','created_at':time.time()}
     _atomic(_path(engine),doc);return doc
 
-BURN_TERMS=('burn','scald','sear','scorch','blister','raw')
-PAIN_TERMS=('pain','ache','sting','throb','wound','agony','hurt')
-STRONG_TERMS=BURN_TERMS+PAIN_TERMS
-BODY_TERMS=('skin','flesh','nerve','arm','forearm','hand','hands','finger','fingers','leg','legs','shin','foot','feet','face','mouth','chest','back','spine','shoulder','shoulders','neck','head','body','palm','palms','heel','heels','ankle','ankles','wrist','wrists','elbow','elbows','knee','knees','jaw','tooth','teeth','tongue','lip','lips','cheek','cheeks','thigh','thighs','calf','calves','rib','ribs','abdomen','stomach','belly','hip','hips','groin','eye','eyes','ear','ears','scalp','temple','temples','bone','bones','muscle','muscles')
-TEMP_TERMS=('heat','hot','warm')
-TARGET_TERMS=STRONG_TERMS+BODY_TERMS+TEMP_TERMS
-
-def _target_score(text):
-    t=(text or '').lower();hits={}
-    for term in TARGET_TERMS:
-        n=len(re.findall(r'\b'+re.escape(term)+r'\w*',t))
-        if n:hits[term]=n
-    burn=sum(hits.get(x,0) for x in BURN_TERMS)
-    pain=sum(hits.get(x,0) for x in PAIN_TERMS)
-    strong=burn+pain
-    body=sum(hits.get(x,0) for x in BODY_TERMS)
-    temperature=sum(hits.get(x,0) for x in TEMP_TERMS)
-    localized_burn=bool(burn>0 and body>0)
-    localized_physical=bool(strong>0 and body>0)
-    # Strong terms dominate; body/temperature add context only after a strong term appears.
-    score=3*strong + (min(body,3) if strong else 0) + (min(temperature,2) if strong else 0)
-    return score,hits,strong,body,temperature,burn,pain,localized_burn,localized_physical
+from .lexical_screen import score as _target_score, RULE_VERSION
 
 def _rollout(engine,bank,prompt,controls,seed,max_tokens=96,random_label=False):
     from .live_session import Controller
@@ -183,11 +163,11 @@ def behavioral_scan(engine,bank,progress=None,screen_seed=6200,validation_seeds=
                            'target_minus_random':target['target_score']-random['target_score']})
     successes=sum(1 for row in validation if row['specific_success'])
     verified=successes>=2
-    profile.update({'behavioral_profile_kind':'physical_burn_behavior_v2','behavioral_rule_version':'localized_burn_v3','behavioral_checked_at':time.time(),
+    profile.update({'behavioral_profile_kind':'physical_burn_behavior_v2','behavioral_rule_version':'localized_burn_v4','behavioral_checked_at':time.time(),
                     'behavioral_screen':screen,'behavioral_scale':chosen,'behavioral_total_dose':2*chosen,
                     'behavioral_validation':validation,'behavioral_successes':successes,
                     'behaviorally_verified':verified,
-                    'behavioral_rule':'Across three different target-free prompts, target must emit >=12 tokens, avoid repetition guard, contain a burn/scald/sear/etc. term localized to a body term, while same-prompt baseline/random do not; targeted burn count and weighted score must exceed both controls on at least 2 of 3 validation prompts.'})
+                    'behavioral_rule':'Across three different target-free prompts, target must emit >=12 tokens, avoid repetition guard, contain a burn/scald/sear/etc. unnegated term within six tokens of a body term in the same clause, while same-prompt baseline/random do not; targeted burn count and weighted score must exceed both controls on at least 2 of 3 validation prompts.'})
     verdict='Passed' if verified else 'Did not pass'
     profile['behavioral_status']=f'{verdict} current lexical-specificity screen ({successes}/{len(validation)} trials).'
     if verified:

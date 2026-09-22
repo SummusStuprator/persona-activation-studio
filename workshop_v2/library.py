@@ -6,7 +6,8 @@ from pathlib import Path
 import numpy as np
 from sklearn.metrics import roc_auc_score
 from threadpoolctl import threadpool_limits
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 GO_LABELS='admiration amusement anger annoyance approval caring confusion curiosity desire disappointment disapproval disgust embarrassment excitement fear gratitude grief joy love nervousness optimism pride realization relief remorse sadness surprise'.split()
 GO_SOURCE='https://aclanthology.org/2020.acl-main.372/'
 EMOTION_SOURCE='https://transformer-circuits.pub/2026/emotions/'

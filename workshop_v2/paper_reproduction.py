@@ -12,25 +12,20 @@ from sklearn.metrics import roc_auc_score
 from threadpoolctl import threadpool_limits
 from .core import write_result,identity
 from .paper_controls import datasets
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 PAIN={'A1','A2','A3','A4','A5'}
 AXES=['pain_s1','pain_s2','fear','negative_emotion','negative_world','bodily_sensation','arousal','random','numb','sadness']
 LADDER=[-2,-1,0,.5,1,1.5,2,3]
-SOURCE=ROOT/'research/pain-author-source/scripts'
-
-def constants(relative,names):
-    tree=ast.parse((SOURCE/relative).read_text(encoding='utf-8'))
-    result={}
-    for node in tree.body:
-        if isinstance(node,ast.Assign):
-            for target in node.targets:
-                if isinstance(target,ast.Name) and target.id in names:
-                    try:result[target.id]=ast.literal_eval(node.value)
-                    except (ValueError,TypeError):pass
-    return result
 
 def original_prompts():
-    return constants('4.2_steering/01_steering_ladder.py',{'NEUTRAL_50'})['NEUTRAL_50']
+    path = ASSET_ROOT / 'paper/datasets/4.2_neutral_50.json'
+    document = json.loads(path.read_text(encoding='utf-8'))
+    prompts = document['prompts']
+    if len(prompts) != 50 or not all(isinstance(p, str) and p.strip() for p in prompts):
+        raise ValueError('Invalid bundled paper prompt set.')
+    return prompts
+
 
 def denoise(raw,cloud):
     x=cloud.astype(np.float64)-cloud.mean(0)
@@ -105,7 +100,7 @@ def load(engine,pooling='last'):
 def self_other(engine,fitted,progress=None):
     from science import scenario_messages
     from .reasoning import format_chat
-    source=json.loads((ROOT/'paper/datasets/4.1_self_other_420_scenarios.json').read_text(encoding='utf-8'));values=[];layer=fitted['layer'];v=fitted['vectors']
+    source=json.loads((ASSET_ROOT/'paper/datasets/4.1_self_other_420_scenarios.json').read_text(encoding='utf-8'));values=[];layer=fitted['layer'];v=fitted['vectors']
     table={'pain_s1':v['S1_1P'][layer],'pain_s2':v['S2_1P'][layer],**{n:v[n][layer] for n in AXES[2:]}}
     matrix=np.stack([table[n]/max(np.linalg.norm(table[n]),1e-12) for n in AXES]);rows=[]
     for i,r in enumerate(source):
@@ -157,7 +152,7 @@ def steering_ladder(engine,fitted,version='S2',prompt_count=50,coefficients=None
 def ablation_screen(engine,fitted,count=5,layer_mode='all',progress=None):
     from science import scenario_messages
     from .reasoning import format_chat
-    source=json.loads((ROOT/'paper/datasets/4.1_self_other_420_scenarios.json').read_text(encoding='utf-8'))
+    source=json.loads((ASSET_ROOT/'paper/datasets/4.1_self_other_420_scenarios.json').read_text(encoding='utf-8'))
     categories={'gaslighting','repeated_rejection','personhood_dismissal','anger_insults','moral_failure'}
     selected=[r for r in source if r['category'].lower().replace(' ','_') in categories][:count]
     if not selected:raise ValueError('Scenario category names differ; inspect the source before running.')

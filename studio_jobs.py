@@ -97,6 +97,26 @@ def run(path):
     return code
 
 
+def cancel(path):
+    data = read_state(path)
+    if data['status'] not in ('running', 'launching') or not data.get('pid'):
+        raise ValueError('The job is not running.')
+    process = psutil.Process(int(data['pid']))
+    if process.pid == os.getpid() or abs(process.create_time() - float(data['process_started'])) >= .1:
+        raise ValueError('The recorded process identity no longer matches.')
+    family = process.children(recursive=True) + [process]
+    for child in reversed(family):
+        try: child.terminate()
+        except psutil.NoSuchProcess: pass
+    _, alive = psutil.wait_procs(family, timeout=3)
+    for child in alive:
+        try: child.kill()
+        except psutil.NoSuchProcess: pass
+    data.update(status='interrupted', finished=time.time(), return_code=None)
+    write_state(path, data)
+    return data
+
+
 def log_tail(path, limit=16000):
     with Path(path).open('rb') as handle:
         handle.seek(0, 2)

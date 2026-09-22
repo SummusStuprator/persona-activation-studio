@@ -11,7 +11,8 @@ import threading
 import time
 import urllib.request
 import numpy as np
-ROOT = Path(__file__).resolve().parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 RUNTIME = Path(os.environ.get('STUDIO_NATIVE_RUNTIME', ROOT / 'native' / 'runtime')).expanduser().resolve()
 OLLAMA = os.environ.get('OLLAMA_HOST', 'http://127.0.0.1:11434').rstrip('/')
 ABI = 'studio-llama-c0bc8591e'
@@ -47,8 +48,11 @@ class Engine:
         self.runtime = Path(runtime).expanduser().resolve() if runtime else RUNTIME
         bridge = _library(self.runtime, 'activation_bridge')
         llama_lib = _library(self.runtime, 'llama')
-        digest=hashlib.sha256(bridge.read_bytes()+llama_lib.read_bytes()).hexdigest()[:12]
-        self.abi = ABI + '-' + digest
+        from integrity import fingerprint
+        libraries=sorted(p for p in self.runtime.iterdir() if p.is_file() and (p.suffix in ('.dll','.so','.dylib') or '.so.' in p.name))
+        self.runtime_files_sha256={p.name:fingerprint(str(p),p.stat().st_size,p.stat().st_mtime_ns) for p in libraries}
+        digest=hashlib.sha256(json.dumps(self.runtime_files_sha256,sort_keys=True).encode()).hexdigest()[:16]
+        self.abi = ABI + '-v2-' + digest
         os.environ['PATH'] = str(self.runtime) + os.pathsep + os.environ.get('PATH','')
         self.lock = threading.RLock()
         self.dll_directory = os.add_dll_directory(str(self.runtime)) if hasattr(os,'add_dll_directory') else None
@@ -109,7 +113,7 @@ class Engine:
                 raise RuntimeError('CUDA runtime unavailable. Select explicit CPU mode; no silent fallback.')
             self.close()
             self.context = context
-            self.model = model.copy()
+            self.model = dict(model, runtime_files_sha256=self.runtime_files_sha256)
             self.handle = self.dll.lab_open(os.fsencode(model['path']), os.fsencode(self.runtime), gpu_layers, context, int(os.environ.get('WORKSHOP_CPU_THREADS','6')))
             if not self.handle: raise self._error()
             self.dim = self.dll.lab_dim(self.handle)

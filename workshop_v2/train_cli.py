@@ -2,8 +2,8 @@
 import argparse,json,time,traceback
 from pathlib import Path
 from .library import train_go,train_extensions,GO_LABELS,EXTENSIONS
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def main():
     p=argparse.ArgumentParser();p.add_argument('--model',default='llama3.2:1b');p.add_argument('--resume',action='store_true');p.add_argument('--cpu',action='store_true');args=p.parse_args()
     from isolated_engine import Engine

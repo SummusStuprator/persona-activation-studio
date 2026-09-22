@@ -17,7 +17,7 @@ def render(engine):
             st.caption('Model switching, unloading and other experiments are paused until generation finishes or is stopped. Live chat controls remain available.')
         return bool(engine.handle)
     with st.sidebar:
-        st.caption('Cooperative mode: one workshop model at a time, adaptive Auto GPU offload from currently free VRAM, and a 10% host-RAM reserve. Persona adapters remain CPU-only.')
+        st.caption('Cooperative mode: one workshop model at a time, adaptive Auto GPU offload from currently free VRAM, and a 10% host-RAM reserve. Persona adapters support Auto, CUDA, and CPU.')
         source=st.selectbox('Model source',['Choose a source','Ollama GGUF','Persona adapters'],key='model_source')
         if source=='Choose a source':
             st.info('Choose the existing GGUF store or the persona adapter folder to begin. No model is loaded automatically.')

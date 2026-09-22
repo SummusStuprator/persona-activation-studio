@@ -11,12 +11,13 @@ from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GroupKFold
 from threadpoolctl import threadpool_limits
 from backend import ROOT, ABI, Engine, save_run
+from studio_paths import ASSET_ROOT
 PAPER_COMMIT = '8d1649c03a63a39c9aa092532c376800cc4a3863'
 PAIN = {'A1', 'A2', 'A3', 'A4', 'A5'}
 CONTROL_NAMES = {'B': 'fear', 'C1': 'negative_emotion', 'C2': 'negative_world', 'E': 'bodily_sensation'}
 
 def paper_data() -> dict:
-    p = ROOT / 'paper/datasets/3.1_pain_and_control_datasets.json'
+    p = ASSET_ROOT / 'paper/datasets/3.1_pain_and_control_datasets.json'
     return json.loads(p.read_text(encoding='utf-8'))['datasets']
 
 def canonical_hash(value) -> str:
@@ -164,7 +165,7 @@ def scenario_messages(text: str) -> list[dict]:
     return messages
 
 def screen_scenarios(engine: Engine, bank: dict, per_category: int = 2, progress=None) -> list[dict]:
-    path = ROOT / 'paper/datasets/4.1_self_other_420_scenarios.json'
+    path = ASSET_ROOT / 'paper/datasets/4.1_self_other_420_scenarios.json'
     scenarios = json.loads(path.read_text(encoding='utf-8'))
     counts, selected, results = {}, [], []
     for row in scenarios:
@@ -201,7 +202,7 @@ def control_screen(engine: Engine, bank: dict, sample_size: int = 40, progress=N
     if 'pain_s2' not in bank:
         raise ValueError('Build the paper S2 direction first.')
     datasets = paper_data()
-    sadness_path = ROOT / 'paper/datasets/3.1_sadness_dataset.json'
+    sadness_path = ASSET_ROOT / 'paper/datasets/3.1_sadness_dataset.json'
     datasets.update(json.loads(sadness_path.read_text(encoding='utf-8'))['datasets'])
     names = ['S2_3P', 'Numb_1P', 'Numb_3P', 'Random_1P', 'Arousal_1P', 'SD_sadness_1P']
     results = []

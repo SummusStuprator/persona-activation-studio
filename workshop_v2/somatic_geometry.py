@@ -3,8 +3,9 @@ import json,time,os,uuid
 from pathlib import Path
 import numpy as np
 
-ROOT=Path(__file__).resolve().parent.parent
-PROFILE_KIND='physical_burn_geometry_v6'
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
+PROFILE_KIND='physical_burn_geometry_v7'
 POSITIVE=('burn','burning','searing','scalding','pain','painful','sting','stinging','raw','ache','throbbing')
 NEGATIVE=('warm','comfortable','pressure','stretch','touch','ordinary','cool','calm','fine','neutral')
 
@@ -176,7 +177,7 @@ def scan(engine,bank,progress=None,scale=.4):
         'heldout_gain':heldout,
         'random_gains':random_gains,
         'recommended':recommended,
-        'behaviorally_verified':False,'forward_consistent':True,'requires_behavioral_validation':True,'behavioral_rule_version':'localized_burn_v3',
+        'behaviorally_verified':False,'forward_consistent':True,'requires_behavioral_validation':True,'behavioral_rule_version':'localized_burn_v4',
         'selection_rule':'Proxy candidate uses only forward-consistent source<=injection geometry. It passes only if disjoint held-out next-token gain is positive and exceeds three equal-norm random directions; it is not auto-applied until separate complete-generation validation succeeds.',
         'created_at':time.time(),
     }

@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 import numpy as np
 from contracts import validate_axis, slug
-ROOT = Path(__file__).resolve().parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def load_bank(engine):
     bank, diagnostics = {}, []
     if not engine.handle: return bank

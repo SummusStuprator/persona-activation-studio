@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "persona-activation-studio"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local persona-data, LoRA training, activation analysis and steering studio"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -14,7 +14,7 @@ dependencies = [
   "pandas>=2.2,<4",
   "scipy>=1.14,<2",
   "scikit-learn>=1.5,<2",
-  "streamlit>=1.40,<2",
+  "streamlit>=1.64,<2",
   "altair>=5,<7",
   "psutil>=6,<8",
   "jinja2>=3.1,<4",
@@ -32,6 +32,14 @@ persona = [
   "peft>=0.19,<0.20",
   "accelerate>=1.2,<2",
   "safetensors>=0.5,<1",
+]
+persona-cuda = [
+  "torch>=2.6",
+  "transformers>=4.57,<5",
+  "peft>=0.19,<0.20",
+  "accelerate>=1.2,<2",
+  "safetensors>=0.5,<1",
+  "bitsandbytes>=0.48,<0.51",
 ]
 train = [
   "torch>=2.6",
@@ -55,13 +63,20 @@ all = [
 studio = "studio_cli:main"
 
 [tool.setuptools]
-packages = ["workshop_v2", "persona"]
+packages = ["workshop_v2", "persona", "studio_assets"]
 py-modules = [
   "studio_cli", "studio_config", "backend", "bank_loader", "contracts",
   "gguf_header", "isolated_engine", "model_store", "model_worker",
   "persona_worker", "runtime_ui", "science", "template_support", "integrity",
-  "lifecycle", "studio_app", "training_runs", "studio_jobs", "native_deploy", "studio_doctor"
+  "lifecycle", "studio_app", "training_runs", "studio_jobs", "native_deploy", "studio_doctor", "studio_paths", "studio_version", "studio_native", "studio_demo"
 ]
 
 [tool.setuptools.package-data]
 workshop_v2 = ["*.md"]
+
+[tool.setuptools.dynamic]
+version = {attr = "studio_version.VERSION"}
+
+[project.urls]
+Repository = "https://github.com/SummusStuprator/persona-activation-studio"
+Issues = "https://github.com/SummusStuprator/persona-activation-studio/issues"

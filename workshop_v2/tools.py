@@ -1,7 +1,8 @@
 """Tiny approval-gated local tool sandbox. No shell, network, or arbitrary files."""
 import ast, json, math, operator, re
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 OPS={ast.Add:operator.add,ast.Sub:operator.sub,ast.Mult:operator.mul,ast.Div:operator.truediv,ast.Mod:operator.mod}
 
 def calculate(expression):

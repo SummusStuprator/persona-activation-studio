@@ -1,149 +1,29 @@
 # Architecture
 
-Persona Activation Studio is a monorepo with separate execution lanes sharing one model/direction/run identity system.
+## Components
 
-## Major components
+`persona.x_scraper` collects posts and reply parents. `persona.dataset_builder` groups conversations, normalizes participants, removes duplicates, and writes isolated splits. `persona.trainer_v4` trains LoRA adapters with capability replay and checkpoint gates. `persona.benchmark` compares adapters and their base models.
 
-```text
-                         Persona Activation Studio
-                                  |
-             +--------------------+--------------------+
-             |                    |                    |
-        persona pipeline      model registry       research UI
-             |                    |                    |
-   scraper -> dataset ->     GGUF / PEFT IDs       Chat / Hell
-   trainer -> benchmark            |                    |
-             |               isolated worker            |
-             +--------------------+--------------------+
-                                  |
-                         activation / run records
-```
+`studio_app` renders the interface. `isolated_engine` owns a model worker through authenticated local IPC. GGUF workers call the native residual bridge; persona workers use decoder hooks in Transformers/PEFT. The web process does not own model tensors.
 
-## Persona pipeline
+## Execution
 
-### `persona/x_scraper.py`
+A per-user launch lock serializes startup. A model lock is held by one worker or training job. Lock files are released by the operating system when their process exits. `STUDIO_LOCK_DIR` provides an explicit lock namespace.
 
-Exports target X accounts using a user-configured twscrape session. It stores posts by type, preserves metadata, supports resume, and can recover direct reply parents.
+GGUF Auto estimates available VRAM and retries lower offload after load failures. Persona Auto chooses BF16, NF4, then CPU. Explicit modes retain their selected device/precision. Every load checks host-memory reserve; long operations check available RAM at example/token boundaries.
 
-### `persona/dataset_builder.py`
+Live generation records prompt, sampler, token IDs, logits-derived measurements, controls, injection layers, activation projections, and stop reason. Intervention cleanup and cache reset run on completion and failure.
 
-Reads the scraper project layout, reconstructs useful conversation context, tokenizes participants into stable roles, removes duplicates, and splits by group so related conversation material stays together.
+## Identity
 
-### `persona/trainer_v4.py`
+Persona identity hashes base, adapter, and tokenizer contents, then binds the source identity to the inference ABI. The ABI records device, quantization, numerical precision, relevant ML versions, and backend code. GGUF runtime identity hashes all deployed shared libraries. Stored arrays have separate SHA-256 checks.
 
-The persona trainer combines:
+## Files
 
-- authentic persona examples;
-- prompt-only KL replay against the frozen base;
-- identity-boundary examples;
-- optional generic-chat anchors in persona voice.
+`studio_paths.CODE_ROOT` contains importable code. `ASSET_ROOT` contains packaged templates, documentation, datasets, and native sources. `data_root()` resolves writable state from `STUDIO_HOME` or the installation default.
 
-It uses a behavior gate for checkpoint selection and writes a final `install_gate_pass`.
+State includes `workspace/`, `vectors/`, `calibration/`, `paper_reproduction/`, `runs/`, `sessions/`, `cache/`, and `native/runtime/`. None is required in Git. Models are referenced from their existing configured stores.
 
-### `persona/benchmark.py`
+## Recovery
 
-Runs common no-system probes and held-out persona comparisons.
-
-## Instrumented inference
-
-### Parent engine
-
-`isolated_engine.py` owns exactly one model worker.
-
-The parent UI never directly shares model tensors with Streamlit callbacks.
-
-### GGUF worker
-
-`model_worker.py` loads a GGUF through the native bridge.
-
-The bridge observes decoder block residual output tensors and exposes:
-
-- before/after residual capture;
-- additive direction intervention;
-- projection erasure;
-- logits;
-- tokenization;
-- chat-template formatting.
-
-### Persona worker
-
-`persona_worker.py` loads an HF base plus PEFT adapter without merging them.
-
-Decoder hooks implement the same high-level intervention contract. Persona directions include the base, adapter, tokenizer, and numerical runtime in their identity.
-
-## Direction identity
-
-A usable direction is not identified only by a label such as `pain_s2`.
-
-It is bound to:
-
-- model/adapter file hashes;
-- tokenizer files;
-- runtime ABI;
-- direction array hash;
-- extraction recipe/data provenance.
-
-If those change, the direction loader rejects the stale array and the preparation path can rebuild it.
-
-## Live generation
-
-`workshop_v2/live_engine.py` performs incremental decoding.
-
-Before each token it samples one atomic control configuration. The trace stores:
-
-- requested/applied control revision;
-- generated token;
-- phase;
-- entropy;
-- chosen probability;
-- activation projections;
-- intervention measurements;
-- numerical injection error.
-
-Hell lab uses the same generator. It does not maintain a second fake generation implementation.
-
-## Storage
-
-Source code is committed.
-
-Local/research state is ignored by Git:
-
-- `workspace/`
-- `vectors/`
-- `calibration/`
-- `runs/`
-- `sessions/`
-- `uploads/`
-- `native/runtime/`
-- model weights and adapters
-- authentication databases
-
-## Resource behavior
-
-The worker layer admits one instrumented model at a time.
-
-GGUF Auto mode estimates currently free VRAM and chooses a partial or full GPU offload accordingly. The host-memory check uses the estimated CPU/GPU weight split.
-
-Persona inference is designed around a separate source-format PEFT worker.
-
-No unrelated process is killed to make a model fit.
-
-## Portability
-
-Machine-specific paths are read from:
-
-- `studio.toml`;
-- `persona-sources.json`;
-- environment variables.
-
-The source tree itself contains no required absolute user path.
-
-Native libraries are built locally and ignored by Git.
-
-## Integrity
-
-A new checkout can run unsealed.
-
-`studio seal` hashes source/config templates used by the research stack into `trusted-files.json`.
-
-After sealing, the worker verifies that snapshot before model execution.
+Training manifests pin dataset and configuration contents. Jobs record process creation time and exit status. Native deployment stages a complete runtime before swapping directories and retains the previous runtime. A source seal rejects changed or missing application files before worker startup.

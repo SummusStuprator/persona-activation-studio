@@ -8,10 +8,11 @@ import sys
 import time
 import uuid
 
-ROOT=Path(__file__).resolve().parent
+from studio_paths import data_root, CODE_ROOT
+ROOT=data_root()
 
 
-def deploy(build, cuda=False):
+def deploy(build, cuda=False, build_info=None):
     from workshop_v2.resource_policy import ModelLaunchLease, ModelLease
     build=Path(build).resolve()
     runtime=ROOT/'native/runtime'
@@ -28,11 +29,14 @@ def deploy(build, cuda=False):
             else:
                 shutil.copy2(source,target)
         if not files:raise RuntimeError('No compiled libraries found.')
+        import json
+        metadata=dict(build_info or {}, built_at=time.time(), libraries={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in stage.iterdir() if p.is_file()})
+        (stage/'build-info.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
         code=("import sys; from backend import Engine; e=Engine(runtime=sys.argv[1]); "
               "assert sys.argv[2]!='1' or e.cuda_available, getattr(e,'cuda_error','CUDA backend registration failed'); "
               "print('Runtime load passed; CUDA=',e.cuda_available)")
         result=subprocess.run([sys.executable,'-c',code,str(stage),'1' if cuda else '0'],
-            cwd=ROOT,capture_output=True,text=True,timeout=90)
+            cwd=CODE_ROOT,capture_output=True,text=True,timeout=90)
         if result.returncode:
             raise RuntimeError('New runtime failed validation; existing runtime unchanged.\n'+result.stderr)
         print(result.stdout.strip())

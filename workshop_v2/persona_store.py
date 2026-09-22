@@ -1,22 +1,26 @@
 """Local-only discovery of immutable PEFT adapter snapshots. No ML imports or downloads."""
 from pathlib import Path
 import hashlib, json, os, struct, time, sys
-ROOT = Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 CONFIG = ROOT / 'persona-sources.json'
 SUPPORTED = {'qwen3', 'qwen2', 'llama', 'mistral'}
 
 def settings():
+    from studio_config import paths
+    p = paths()
     defaults = {
-        "project_roots": [str(ROOT/"workspace"/"persona-project")],
-        "model_roots": [str(ROOT/"workspace"/"models"/"persona")],
+        "project_roots": [str(p.project)],
+        "model_roots": [str(p.models)],
         "cache_roots": [str(Path(os.environ.get("HF_HOME", Path.home()/".cache/huggingface"))/"hub")],
         "python": sys.executable,
         "base_overrides": {},
         "settle_seconds": 5,
         "max_depth": 5,
     }
-    if CONFIG.exists():
-        defaults.update(read_json(CONFIG))
+    config = data_root() / "persona-sources.json"
+    if config.exists():
+        defaults.update(read_json(config))
     def expand(value):
         p=Path(value).expanduser()
         return str((ROOT/p).resolve() if not p.is_absolute() else p.resolve())

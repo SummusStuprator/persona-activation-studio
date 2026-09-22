@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse, hashlib, json, os, shutil, subprocess, sys, time, urllib.request
 from pathlib import Path
 from studio_config import REPO_ROOT, ensure_workspace, paths, load_config
+from studio_paths import ASSET_ROOT, data_root, config_path
 
 def run_module(module,args):
     python=load_config()['python'] if module in ('persona.trainer_v4','persona.benchmark') else sys.executable
@@ -11,9 +12,9 @@ def run_module(module,args):
 
 def init_cmd(args):
     p=ensure_workspace()
-    cfg=REPO_ROOT/'studio.toml'
-    if not cfg.exists():shutil.copy2(REPO_ROOT/'studio.toml.example',cfg)
-    sources=REPO_ROOT/'persona-sources.json'
+    cfg=config_path(); cfg.parent.mkdir(parents=True,exist_ok=True)
+    if not cfg.exists():shutil.copy2(ASSET_ROOT/'studio.toml.example',cfg)
+    sources=data_root()/'persona-sources.json'
     if not sources.exists():
         sources.write_text(json.dumps({
             'project_roots':[str(p.project)],'model_roots':[str(p.models)],
@@ -56,7 +57,7 @@ def dataset_cmd(args):
     import re
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*',revision):raise ValueError('Use a plain dataset revision name, not a path. Use --output for an explicit path.')
     out=Path(args.output).expanduser().resolve() if args.output else p.datasets/revision
-    cmd=['--input',str(p.project),'--output',str(out)]
+    cmd=['--input',str(p.project),'--output',str(out),'--exports',str(p.exports)]
     if args.overwrite:cmd+=['--overwrite']
     code=run_module('persona.dataset_builder',cmd)
     if code==0:print('Dataset revision:',out)
@@ -134,11 +135,14 @@ def plan_cmd(args):
     return 0 if rows and all(row.get('status')=='ready' for row in rows) else 1
 
 def benchmark_cmd(args):
-    p=ensure_workspace();out=p.workspace/'benchmark';out.mkdir(parents=True,exist_ok=True)
-    cmd=['--model-root',str(p.models),'--trainer',str(REPO_ROOT/'persona'/'trainer_v4.py'),'--output-root',str(out),'--base-model',args.base_model]
+    p=ensure_workspace();out=Path(args.output_root).expanduser().resolve() if args.output_root else p.workspace/'benchmark';out.mkdir(parents=True,exist_ok=True)
+    cmd=['--model-root',str(Path(args.model_root).expanduser().resolve() if args.model_root else p.models),'--trainer',str(REPO_ROOT/'persona'/'trainer_v4.py'),'--output-root',str(out),'--base-model',args.base_model]
     if args.quick:cmd+=['--quick']
     if args.only:cmd+=['--only']+args.only
-    return run_module('persona.benchmark',cmd)
+    cmd += ['--temperature',str(args.temperature),'--max-new-tokens',str(args.max_new_tokens),'--heldout-count',str(args.heldout_count)]
+    from workshop_v2.resource_policy import ModelLaunchLease, ModelLease
+    with ModelLaunchLease(), ModelLease():
+        return run_module('persona.benchmark',cmd)
 
 def research_data_cmd(args):
     base='https://raw.githubusercontent.com/google-research/google-research/master/goemotions/'
@@ -148,7 +152,7 @@ def research_data_cmd(args):
       'data/dev.tsv':'575489c079c9de1097062a01738f998590d6b7ead66dd1c9fd1d2ba01fd8bc62',
       'data/test.tsv':'0587b2dd8b27b97352adbfc3fb083d46005c8946657fdc2b1ca8b1cc7f1f8be4',
     }
-    root=REPO_ROOT/'datasets'/'goemotions'
+    root=data_root()/'datasets'/'goemotions'
     for name,expected in files.items():
         target=root/name;target.parent.mkdir(parents=True,exist_ok=True)
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest()==expected:
@@ -163,39 +167,53 @@ def research_data_cmd(args):
     print('GoEmotions ready:',root)
     return 0
 
+def demo_cmd(args):
+    python = load_config()['python'] if args.train else sys.executable
+    command = [str(python), '-m', 'studio_demo', '--device', args.device]
+    if args.train: command.append('--train')
+    return subprocess.call(command, cwd=REPO_ROOT)
+
 def app_cmd(args):
     cfg=load_config();port=args.port or int(cfg.get('runtime',{}).get('port',8899))
     cmd=[sys.executable,'-m','streamlit','run',str(REPO_ROOT/'studio_app.py'),'--server.address=127.0.0.1',f'--server.port={port}','--server.headless=true','--server.fileWatcherType=none','--browser.gatherUsageStats=false']
     return subprocess.call(cmd,cwd=REPO_ROOT)
 
 def native_cmd(args):
-    script=REPO_ROOT/'scripts'/('build-native.ps1' if os.name=='nt' else 'build-native.sh')
-    if os.name=='nt':return subprocess.call(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(script)]+(['-Cuda'] if args.cuda else []),cwd=REPO_ROOT)
-    env=dict(os.environ,CUDA='ON' if args.cuda else 'OFF');return subprocess.call(['bash',str(script)],cwd=REPO_ROOT,env=env)
+    from studio_native import build
+    build(args.cuda, args.jobs, args.architectures, args.cuda_root)
+    return 0
 
 def check_cmd(args):
-    checks=[['-m','unittest','discover','-s','tests','-p','test_*.py','-v']]
-    checks += [[str(REPO_ROOT/'tests'/name)] for name in (
+    from tempfile import TemporaryDirectory
+    checks=[['-m','unittest','discover','-s',str(ASSET_ROOT/'tests'),'-p','test_*.py','-v']]
+    checks += [[str(ASSET_ROOT/'tests'/name)] for name in (
         'physical_profile_smoke.py','pair_cache_smoke.py',
         'physical_recipe_quality.py','ui_smoke.py')]
-    for tail in checks:
-        print('CHECK:', ' '.join(tail), flush=True)
-        code=subprocess.call([sys.executable,'-X','utf8']+tail,cwd=REPO_ROOT)
-        if code:
-            print('FAILED: stopping at the first failed check.',flush=True)
-            return code
-    print('PASS: reliability, isolated profile/cache, recipes, and all 14 unloaded UI pages. No model training or inference was started.',flush=True)
+    with TemporaryDirectory(prefix='studio-check-') as directory:
+        environment = dict(os.environ, STUDIO_HOME=directory,
+            STUDIO_CONFIG=str(Path(directory)/'studio.toml'),
+            STUDIO_LOCK_DIR=str(Path(directory)/'locks'),
+            OLLAMA_MODELS=str(Path(directory)/'ollama'), HF_HOME=str(Path(directory)/'hf'),
+            PYTHONPATH=str(REPO_ROOT), PYTHONUTF8='1', PYTHONIOENCODING='utf-8')
+        for tail in checks:
+            print('CHECK:', ' '.join(tail), flush=True)
+            code=subprocess.call([sys.executable,'-X','utf8']+tail,cwd=directory,env=environment)
+            if code: return code
+    print('PASS: software checks',flush=True)
     return 0
 
 def main(argv=None):
     ap=argparse.ArgumentParser(prog='studio',description='Persona Activation Studio')
+    from studio_version import VERSION
+    ap.add_argument('--version',action='version',version=VERSION)
     sub=ap.add_subparsers(dest='command',required=True)
     sub.add_parser('init').set_defaults(func=init_cmd)
     d=sub.add_parser('doctor');d.add_argument('--require',action='append',choices=['core','native','train','scrape']);d.set_defaults(func=doctor_cmd)
     sub.add_parser('check',help='Run isolated, model-free software checks').set_defaults(func=check_cmd)
     a=sub.add_parser('app');a.add_argument('--port',type=int);a.set_defaults(func=app_cmd)
-    n=sub.add_parser('native');n.add_argument('--cuda',action='store_true');n.set_defaults(func=native_cmd)
+    n=sub.add_parser('native');n.add_argument('--cuda',action='store_true');n.add_argument('--jobs',type=int,default=2);n.add_argument('--architectures',default='native');n.add_argument('--cuda-root');n.set_defaults(func=native_cmd)
     sub.add_parser('research-data').set_defaults(func=research_data_cmd)
+    demo=sub.add_parser('demo');demo.add_argument('--train',action='store_true');demo.add_argument('--device',choices=['CPU','CUDA'],default='CPU');demo.set_defaults(func=demo_cmd)
     s=sub.add_parser('scrape');ss=s.add_subparsers(dest='scrape_command',required=True)
     q=ss.add_parser('setup');q.add_argument('--alias',default='studio_x');q.add_argument('--replace',action='store_true');q.add_argument('--from-clipboard',action='store_true')
     ss.add_parser('accounts')
@@ -208,11 +226,11 @@ def main(argv=None):
     pr=sub.add_parser('profile');ps=pr.add_subparsers(dest='profile_command',required=True);ps.add_parser('list');q=ps.add_parser('add');q.add_argument('name');q.add_argument('--dataset-profile');q.add_argument('--tier',default='core',choices=['core','extended']);q.add_argument('--max-steps',type=int,default=0);q.add_argument('--max-rows',type=int,default=0);q.add_argument('--max-length',type=int,default=0);pr.set_defaults(func=profile_cmd)
     t=sub.add_parser('train');t.add_argument('profile');t.add_argument('--dataset');t.add_argument('--config');t.add_argument('--model',help='Base model; defaults to Qwen/Qwen3-4B for new runs, or the pinned model on resume');t.add_argument('--anchors');t.add_argument('--max-steps',type=int,default=0);t.add_argument('--resume',action='store_true');t.add_argument('--run-dir',help='Exact unfinished Studio run to resume');t.add_argument('--no-install',action='store_true');t.set_defaults(func=train_cmd)
     q=sub.add_parser('plan',help='Validate configured persona datasets without training');q.add_argument('--dataset');q.add_argument('--config');q.set_defaults(func=plan_cmd)
-    b=sub.add_parser('benchmark');b.add_argument('--base-model',default='Qwen/Qwen3-4B');b.add_argument('--quick',action='store_true');b.add_argument('--only',nargs='*');b.set_defaults(func=benchmark_cmd)
+    b=sub.add_parser('benchmark');b.add_argument('--model-root');b.add_argument('--output-root');b.add_argument('--max-new-tokens',type=int,default=160);b.add_argument('--heldout-count',type=int,default=4);b.add_argument('--temperature',type=float,default=0.0);b.add_argument('--base-model',default='Qwen/Qwen3-4B');b.add_argument('--quick',action='store_true');b.add_argument('--only',nargs='*');b.set_defaults(func=benchmark_cmd)
     sub.add_parser('seal').set_defaults(func=lambda a:(print('SEALED',len(__import__('integrity').seal_release()['files'])) or 0))
     sub.add_parser('verify').set_defaults(func=lambda a:(print(__import__('integrity').verify_release(native=True)) or 0))
     args=ap.parse_args(argv)
     try:return int(args.func(args) or 0)
-    except (ValueError,FileNotFoundError) as exc:ap.error(str(exc))
+    except (ValueError,FileNotFoundError,RuntimeError,MemoryError) as exc:ap.exit(1,str(exc)+'\n')
 
 if __name__=='__main__':raise SystemExit(main())

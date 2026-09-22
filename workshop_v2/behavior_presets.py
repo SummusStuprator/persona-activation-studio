@@ -2,8 +2,8 @@
 from pathlib import Path
 import json
 import streamlit as st
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def apply_preset(preset):
     st.session_state.update(preset["ui_settings"])
     st.session_state["cal_consent"]=False

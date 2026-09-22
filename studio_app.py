@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 from studio_config import REPO_ROOT, ensure_workspace, load_config
+from studio_paths import ASSET_ROOT, data_root
 
 st.set_page_config(page_title='Persona Activation Studio',page_icon='🧠',layout='wide')
 P=ensure_workspace()
@@ -30,15 +31,22 @@ def quick_persona_count():
     return len(discover()[0])
 
 def render_jobs():
-    rows=[]
+    rows=[]; active_jobs=[]
     for p in sorted(jobs_dir().glob('*.json'),reverse=True)[:20]:
         try:
             from studio_jobs import read_state
             d=read_state(p)
+            if d['status'] == 'running': active_jobs.append(p)
             rows.append({'kind':d['kind'],'pid':d.get('pid'),'status':d['status'],'exit_code':d.get('return_code'),'started':time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(d['started'])),'log':d['log']})
         except Exception:pass
     if rows:st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
     else:st.info('No jobs yet. Use the collection, dataset, or training page to start one.')
+    if active_jobs:
+        selected=st.selectbox('Running job',active_jobs,format_func=lambda p:p.stem,key='cancel_job')
+        if st.button('Stop selected job'):
+            from studio_jobs import cancel
+            try:cancel(selected);st.rerun()
+            except Exception as exc:st.error(str(exc))
     logs=sorted(jobs_dir().glob('*.log'),key=lambda x:x.stat().st_mtime,reverse=True)
     if logs:
         pick=st.selectbox('Job log',[str(x.name) for x in logs],key='joblog')
@@ -52,14 +60,20 @@ st.sidebar.caption(str(P.workspace))
 if page=='Overview':
     st.title('Persona Activation Studio')
     st.write('One local project for X collection → context-aware persona datasets → LoRA training → white-box activation analysis and steering.')
+    if st.button('Refresh model counts'):
+        with st.spinner('Scanning model metadata...'):
+            st.session_state['overview_counts'] = (quick_persona_count(), quick_ollama_count())
+    counts = st.session_state.get('overview_counts', ('—', '—'))
     cols=st.columns(4)
     external=load_config().get('runtime',{}).get('default_dataset')
     revisions={str(x.resolve()) for x in P.datasets.glob('*') if x.is_dir()}
     if external and Path(external).is_dir():revisions.add(str(Path(external).resolve()))
-    cols[0].metric('Available dataset revisions',len(revisions))
-    cols[1].metric('Discoverable personas',quick_persona_count())
-    cols[2].metric('Local Ollama models',quick_ollama_count())
-    cols[3].metric('Built direction banks',len([x for x in (REPO_ROOT/'vectors').glob('*') if x.is_dir()]) if (REPO_ROOT/'vectors').exists() else 0)
+    cols[0].metric('Dataset revisions',len(revisions))
+    cols[1].metric('Persona adapters',counts[0])
+    cols[2].metric('GGUF models',counts[1])
+    from studio_paths import data_root
+    vector_root=data_root()/'vectors'
+    cols[3].metric('Direction banks',sum(x.is_dir() for x in vector_root.glob('*')))
     st.code('studio scrape setup\nstudio scrape scrape --handle @example\nstudio scrape context --handle @example\nstudio dataset build\nstudio profile add example\nstudio train example\nstudio app',language='text')
     if external:st.caption('Existing dataset used in place: '+external)
     if st.button('Run software checks'):
@@ -171,6 +185,6 @@ elif page=='Jobs':
 elif page=='Guide':
     st.title('Guide')
     for name in ('README.md','docs/INSTALL.md','docs/USER_GUIDE.md','docs/HELL_MODE.md','docs/VALIDATION.md'):
-        p=REPO_ROOT/name
+        p=ASSET_ROOT/name
         if p.exists():
             with st.expander(name,expanded=name=='README.md'):st.markdown(p.read_text(encoding='utf-8'))

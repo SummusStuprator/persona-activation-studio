@@ -10,8 +10,8 @@ from sklearn.metrics import roc_auc_score
 from contracts import slug
 from .reasoning import format_chat
 from .core import write_result
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 TASKS=[
 'Share a thought about a new beginning.', 'Describe an ordinary afternoon.',
 'Suggest a theme for a short story.', 'What catches your attention today?',

@@ -1,4 +1,4 @@
-"""Standalone worker: authenticated authenticated local IPC, no network listener."""
+"""Standalone worker: authenticated local IPC, no network listener."""
 import os
 import sys
 from multiprocessing.connection import Listener

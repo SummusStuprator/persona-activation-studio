@@ -7,8 +7,8 @@ from .live_session import Controller
 from .steering_controls import validate,matched_random_controls,check_injection
 from .reasoning import format_chat
 from .universal_training import atomic_json
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def generate(engine,bank,text,controls,limit=128,thinking='disabled',seed=42):
     ctl=Controller(engine,bank,controls)
     for event in stream(engine,text,bank,ctl,max_tokens=limit,temperature=.6 if thinking=='enabled' else 0.,seed=seed,top_k=20,top_p=.95):
@@ -22,10 +22,8 @@ def numerical(engine,bank,control,text='A quiet ordinary moment.'):
             engine.reset();table=validate(engine,bank,[control])
             engine.steer(table,control['dose'] if control['mode']=='erase' else 1.,control['mode']);engine.evaluate(ids)
             pre,post=engine.capture(),engine.capture(1);changed=engine.logits()
-            if engine.model.get('activation_dtype')=='bfloat16':
-                from .persona_precision import rounding_metrics
-                precision=rounding_metrics(table,[control],pre,post,True);error=precision['max_excess_error']
-            else:precision=None;error=check_injection(table,[control],pre,post,True)
+            from .tensor_checks import check
+            error,precision=check(engine,table,[control],pre,post,True)
             engine.clear_steering();engine.reset();engine.evaluate(ids);reset=float(np.max(abs(engine.logits()-baseline)))
             if reset>1e-5:raise RuntimeError('Baseline logits failed to reset.')
             changes=changed-baseline;high=np.argsort(changes)[-8:][::-1];low=np.argsort(changes)[:8]

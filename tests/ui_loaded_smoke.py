@@ -8,7 +8,7 @@ from isolated_engine import Engine
 from model_store import grouped_inventory
 from workshop_v2 import runtime
 import runtime_ui
-ROOT=Path(__file__).resolve().parents[1]
+from studio_paths import CODE_ROOT as ROOT
 models,_=grouped_inventory()
 model=next(m for m in models if m['name']=='llama3.2:1b' or 'llama3.2:1b' in m.get('aliases',[]))
 engine=Engine()

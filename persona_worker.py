@@ -3,7 +3,6 @@ import os,sys
 from multiprocessing.connection import Listener
 for key in ('HF_HUB_OFFLINE','TRANSFORMERS_OFFLINE','HF_DATASETS_OFFLINE','HF_HUB_DISABLE_TELEMETRY'):
     os.environ[key]='1'
-os.environ['CUDA_VISIBLE_DEVICES']=''
 os.environ['TOKENIZERS_PARALLELISM']='false'
 from workshop_v2.resource_policy import configure_process
 configure_process()

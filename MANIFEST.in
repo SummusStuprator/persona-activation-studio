@@ -1,0 +1,16 @@
+include README.md LICENSE THIRD_PARTY.md studio.toml.example CHANGELOG.md SECURITY.md CITATION.cff CONTRIBUTING.md
+recursive-include docs *.md
+include native/bridge.cpp native/CMakeLists.txt
+recursive-include scripts *.ps1 *.sh
+recursive-include paper *.md LICENSE *.json
+recursive-include tests *.py
+recursive-include examples *.json *.jsonl *.md
+recursive-include constraints *.txt
+prune backups
+prune workspace
+prune runs
+prune calibration
+prune .vendor
+include .gitignore
+recursive-include .github *.yml
+include .gitattributes

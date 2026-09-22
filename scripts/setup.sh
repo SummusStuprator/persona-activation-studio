@@ -22,4 +22,4 @@ case "$PROFILE" in
 esac
 "$PYBIN" -m pip install -e "$ROOT$EXTRA"
 "$PYBIN" -m studio_cli init
-echo "Studio is ready. Run scripts/start.sh"
+echo "Core environment installed. Run scripts/start.sh"

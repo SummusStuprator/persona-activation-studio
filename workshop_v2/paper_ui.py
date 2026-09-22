@@ -5,7 +5,8 @@ import pandas as pd
 import streamlit as st
 from . import paper_reproduction as rep
 from .core import write_result
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 COVERAGE=[
 {'section':'3.1/3.2','local implementation':'All original datasets; S1/S2, first/third person; last/mean pooling; grouped CV; final all200 fits','remaining':'Original25 checkpoints and exact published precision are not installed.'},
 {'section':'3.3','local implementation':'Standalone control screens; pooled-neutral10-axis geometry; native vocabulary readout','remaining':'Full behavioral completion grid, suffix controls, both geometry robustness variants and across25-model statistics are not yet reproduced.'},

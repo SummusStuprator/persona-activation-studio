@@ -8,7 +8,8 @@ from pathlib import Path
 import hashlib,json,time
 import numpy as np
 from .core import identity,write_result
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 DEFAULT_CORPUS=[
 'The museum guide described how the objects in the room had been collected over many years. Visitors asked questions about the materials, the dates, and the people who made them. A notebook on the desk recorded each item in a careful list.',
 'The travelers compared the routes on a map before leaving the station. One road followed the river, while another crossed the hills and passed several villages. They checked the timetable and discussed where to stop for lunch during the journey.']

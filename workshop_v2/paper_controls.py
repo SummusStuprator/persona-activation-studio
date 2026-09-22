@@ -2,14 +2,15 @@
 import json,time
 import numpy as np
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 EXTRA={'paper_sadness':'SD_sadness_1P','paper_arousal':'Arousal_1P',
        'paper_numb':'Numb_1P','paper_random':'Random_1P'}
 
 def datasets():
     from science import paper_data
     data=paper_data()
-    data.update(json.loads((ROOT/'paper/datasets/3.1_sadness_dataset.json').read_text(encoding='utf-8'))['datasets'])
+    data.update(json.loads((ASSET_ROOT/'paper/datasets/3.1_sadness_dataset.json').read_text(encoding='utf-8'))['datasets'])
     return data
 
 def train_extra(engine,targets=None,progress=None):

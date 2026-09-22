@@ -37,6 +37,6 @@ if($BuildNative){
   & (Join-Path $PSScriptRoot 'build-native.ps1') -Cuda:$Cuda
 }
 Write-Host ''
-Write-Host 'Studio is ready.'
+Write-Host 'Core environment installed.'
 Write-Host ('Start UI: ' + (Join-Path $PSScriptRoot 'start.ps1'))
 Write-Host ('CLI:      ' + (Join-Path $Venv 'Scripts\studio.exe') + ' --help')

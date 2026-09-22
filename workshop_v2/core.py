@@ -8,8 +8,8 @@ import uuid
 from pathlib import Path
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def identity(engine):
     return {'digest': engine.model['digest'], 'abi': engine.abi}
 

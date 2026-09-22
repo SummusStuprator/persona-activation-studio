@@ -66,3 +66,10 @@ native/build*/
 # Separate native build/staging generations
 native/build-*/
 native/runtime-stage-*/
+
+# Generated experiment data
+paper_reproduction/
+research/
+*.db-wal
+*.db-shm
+*.egg-info/

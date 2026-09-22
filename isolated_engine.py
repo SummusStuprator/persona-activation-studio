@@ -15,6 +15,7 @@ import threading
 import time
 import tempfile
 from model_store import ROOT, plan_load
+from studio_paths import CODE_ROOT
 METHODS = {'open', 'close', 'reset', 'clear_steering', 'steer', 'tokenize',
            'evaluate', 'capture', 'chat', 'logits', 'piece','is_eog', 'extract', 'generate'}
 METHODS.update({'mean_transport','unembed_residual','read_positions','extract_response','score_response'})
@@ -26,7 +27,7 @@ class Engine:
         self._loaded = False; self.model = None
         self.load_plan = {}; self.timeout = 300
         self.log_path = ROOT / 'logs' / 'model-worker.log'
-        self.log_path.parent.mkdir(exist_ok=True)
+        self.log_path.parent.mkdir(parents=True,exist_ok=True)
         atexit.register(self.close)
 
     @property
@@ -46,9 +47,11 @@ class Engine:
         env['ACTIVATION_LAB_WORKER_KEY'] = auth.hex()
         env['ACTIVATION_LAB_RUNTIME'] = str(self.runtime_path)
         env['STUDIO_WORKER_FAMILY'] = family
+        env['PYTHONUTF8'] = '1'
+        env['PYTHONIOENCODING'] = 'utf-8'
         with self.log_path.open('ab') as log:
-            self.process = subprocess.Popen([getattr(self,'worker_python',sys.executable), str(getattr(self,'worker_script',ROOT/'model_worker.py')), address],
-                cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
+            self.process = subprocess.Popen([getattr(self,'worker_python',sys.executable), str(getattr(self,'worker_script',CODE_ROOT/'model_worker.py')), address],
+                cwd=CODE_ROOT, env=env, stdout=log, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
         for _ in range(300):
             if self.process.poll() is not None:
@@ -116,9 +119,11 @@ class Engine:
                     try:Path(self.worker_address).unlink()
                     except (FileNotFoundError,OSError):pass
 
-    def open(self, model, gpu_layers=None, context=2048, mode='Auto', manual=0):
+    def open(self, model, gpu_layers=None, context=2048, mode='Auto', manual=0, precision='auto'):
         with self.lock:
             if model.get('reason'): raise ValueError(model['reason'])
+            from integrity import verify_release
+            verify_release()
             self.close()
             from workshop_v2.resource_policy import guard_load,settings as resource_settings,ModelLaunchLease
             launch=None
@@ -139,14 +144,14 @@ class Engine:
                     resolved=shutil.which(str(self.worker_python))
                     if not resolved:raise RuntimeError('Configured persona Python environment does not exist.')
                     self.worker_python=resolved
-                self.worker_script = ROOT/'persona_worker.py'
+                self.worker_script = CODE_ROOT/'persona_worker.py'
                 self.runtime_path = ROOT
                 self.log_path = ROOT/'logs'/('persona-'+model['selection_id']+'.log')
                 self.timeout = 300
                 try:
                     self._start()
-                    self._call('open', model, context=context)
-                    self.load_plan = {'backend':'persona_peft', 'device':'CPU', 'base':self.model['base_path'],
+                    details=self._call('open', model, context=context, mode=mode, precision=precision)
+                    self.load_plan = {'backend':'persona_peft', **details['plan'], 'base':self.model['base_path'],
                         'adapter':self.model['adapter_path'], 'digest':self.model['digest'], 'abi':self.abi,
                         'context':context, 'weight_files_copied':False, 'weights_frozen':True}
                     self._record('loaded')
@@ -157,10 +162,10 @@ class Engine:
                     if launch is not None:launch.close();launch=None
                     raise
             self.worker_python=sys.executable
-            self.worker_script=ROOT/'model_worker.py'
+            self.worker_script=CODE_ROOT/'model_worker.py'
             if gpu_layers is not None:
                 mode, manual = ('CPU', 0) if gpu_layers == 0 else ('Manual', gpu_layers)
-            profile = 'runtime-compat' if model.get('architecture') in ('qwen35','qwen35moe','mistral3','gemma4','nanbeige') else 'runtime'
+            profile = 'runtime'
             candidate = ROOT/'native'/profile
             self.runtime_path = Path(os.environ['STUDIO_NATIVE_RUNTIME']).expanduser().resolve() if os.environ.get('STUDIO_NATIVE_RUNTIME') else (candidate if candidate.is_dir() and any(candidate.iterdir()) else ROOT/'native'/'runtime')
             model = dict(model, runtime_profile=profile)

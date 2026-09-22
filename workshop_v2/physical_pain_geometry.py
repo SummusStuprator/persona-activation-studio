@@ -3,8 +3,9 @@ import json,time,os,uuid
 from pathlib import Path
 import numpy as np
 
-ROOT=Path(__file__).resolve().parent.parent
-PROFILE_KIND='physical_pain_geometry_v1'
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
+PROFILE_KIND='physical_pain_geometry_v2'
 POSITIVE=('pain','aching','ache','throbbing','sting','stinging','sore','hurting','hurt')
 NEGATIVE=('fine','comfortable','normal','relaxed','calm','easy','neutral','okay')
 
