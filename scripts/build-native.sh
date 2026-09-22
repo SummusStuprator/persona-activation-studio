@@ -2,25 +2,28 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/.vendor/llama.cpp"
-BUILD="$ROOT/native/build"
-RUNTIME="$ROOT/native/runtime"
-COMMIT="c0bc8591e8815c63cb01dd3f051a8b0df02501c9"
 CUDA="${CUDA:-OFF}"
-JOBS="${JOBS:-}"
-if [[ -z "$JOBS" ]]; then
-  N="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
-  JOBS=$(( N / 2 )); (( JOBS < 1 )) && JOBS=1; (( JOBS > 4 )) && JOBS=4
-fi
+flavor=cpu; [[ "$CUDA" == ON ]] && flavor=cuda
+BUILD="$ROOT/native/build-$flavor"
+JOBS="${JOBS:-2}"
+COMMIT="c0bc8591e8815c63cb01dd3f051a8b0df02501c9"
 if [[ ! -d "$VENDOR/.git" ]]; then
   mkdir -p "$VENDOR"
   git -C "$VENDOR" init
-  git -C "$VENDOR" remote add origin https://github.com/ggerganov/llama.cpp.git
+  git -C "$VENDOR" remote add origin https://github.com/ggml-org/llama.cpp.git
 fi
-git -C "$VENDOR" fetch --depth 1 origin "$COMMIT"
-git -C "$VENDOR" checkout --detach FETCH_HEAD
-cmake -S "$ROOT/native" -B "$BUILD" -DLLAMA_CPP_DIR="$VENDOR" -DGGML_CUDA="$CUDA" -DCMAKE_BUILD_TYPE=Release
-cmake --build "$BUILD" --target activation_bridge --parallel "$JOBS"
-mkdir -p "$RUNTIME"
-find "$BUILD" -type f \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) -exec cp -f {} "$RUNTIME/" \;
-test -n "$(find "$RUNTIME" -maxdepth 1 -type f -name '*activation_bridge*' -print -quit)" || { echo 'activation bridge missing'; exit 1; }
-echo "Native runtime copied to $RUNTIME (parallel jobs: $JOBS)"
+if ! git -C "$VENDOR" cat-file -e "$COMMIT^{commit}" 2>/dev/null; then
+  git -C "$VENDOR" fetch --depth 1 origin "$COMMIT"
+fi
+[[ -z "$(git -C "$VENDOR" status --porcelain)" ]] || { echo 'Preserve vendor edits first.'; exit 1; }
+git -C "$VENDOR" checkout --quiet --detach "$COMMIT"
+targets=(activation_bridge ggml-cpu)
+options=(-S "$ROOT/native" -B "$BUILD" -DLLAMA_CPP_DIR="$VENDOR" -DGGML_CUDA="$CUDA" -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF -DCMAKE_BUILD_TYPE=Release)
+deploy=()
+if [[ "$CUDA" == ON ]]; then
+  targets+=(ggml-cuda); deploy+=(--cuda)
+  options+=(-DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES:-native}")
+fi
+cmake "${options[@]}"
+cmake --build "$BUILD" --config Release --target "${targets[@]}" --parallel "$JOBS"
+"$ROOT/.venv/bin/python" "$ROOT/native_deploy.py" "$BUILD" "${deploy[@]}"

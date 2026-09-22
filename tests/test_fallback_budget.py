@@ -22,4 +22,14 @@ class FallbackBudgetTests(unittest.TestCase):
         self.assertEqual([c.kwargs['mode'] for c in guard.call_args_list],['Auto','Manual','Manual','CPU'])
         self.assertEqual(len(e.load_plan['fallback_errors']),2)
 
+    def test_manual_offload_is_not_silently_changed_to_auto(self):
+        model={'name':'fixture','digest':'fixture','architecture':'llama','path':'unused.gguf'}
+        def plan(model,context,mode,manual=0):
+            return dict(mode=mode,gpu_layers=manual,estimated_cpu_weights_gib=2,estimated_gpu_weights_gib=1)
+        e=Engine();e.model=model
+        with patch('isolated_engine.plan_load',side_effect=plan),patch.object(rp,'guard_load',return_value={'cooperative':True}),patch.object(rp,'ModelLaunchLease',return_value=SimpleNamespace(close=lambda:None)),patch.object(e,'_start'),patch.object(e,'_call') as called,patch.object(e,'_record'):
+            e.open(model,context=512,mode='Manual',manual=14)
+            self.assertEqual(called.call_args.kwargs['gpu_layers'],14)
+            self.assertEqual(e.load_plan['requested_mode'],'Manual')
+
 if __name__=='__main__':unittest.main()

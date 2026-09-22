@@ -73,7 +73,8 @@ def launch(root, folder, kind, args):
             with log.open('w', encoding='utf-8') as output:
                 proc = subprocess.Popen([sys.executable, '-m', 'studio_jobs', str(meta)],
                     cwd=root, stdout=output, stderr=subprocess.STDOUT,
-                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+                    env=dict(os.environ,PYTHONUTF8='1',PYTHONIOENCODING='utf-8'))
         except Exception as exc:
             write_state(meta, dict(data, status='failed', error=str(exc), finished=time.time()))
             raise

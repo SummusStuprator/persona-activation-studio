@@ -28,20 +28,9 @@ def init_cmd(args):
     return 0
 
 def doctor_cmd(args):
-    p=ensure_workspace();checks={}
-    checks['python']=sys.version.split()[0]
-    checks['git']=shutil.which('git')
-    checks['cmake']=shutil.which('cmake')
-    runtime=REPO_ROOT/'native'/'runtime'
-    checks['native_runtime']=str(runtime) if runtime.is_dir() and any(runtime.iterdir()) else None
-    checks['ollama_store']=str(Path(os.environ.get('OLLAMA_MODELS',Path.home()/'.ollama/models')).expanduser())
-    try:
-        with urllib.request.urlopen(os.environ.get('OLLAMA_HOST','http://127.0.0.1:11434').rstrip('/')+'/api/tags',timeout=2) as r:checks['ollama_api']=r.status==200
-    except Exception:checks['ollama_api']=False
-    for mod in ('streamlit','numpy','sklearn','twscrape','torch','transformers','peft'):
-        try:__import__(mod);checks[mod]=True
-        except Exception:checks[mod]=False
-    print(json.dumps(checks,indent=2));return 0
+    from studio_doctor import command
+    return command(args)
+
 
 def scrape_cmd(args):
     p=ensure_workspace();base=['--db',str(p.account_db)]
@@ -64,6 +53,8 @@ def scrape_cmd(args):
 def dataset_cmd(args):
     p=ensure_workspace()
     revision=args.revision or time.strftime('revision-%Y%m%d-%H%M%S')
+    import re
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*',revision):raise ValueError('Use a plain dataset revision name, not a path. Use --output for an explicit path.')
     out=Path(args.output).expanduser().resolve() if args.output else p.datasets/revision
     cmd=['--input',str(p.project),'--output',str(out)]
     if args.overwrite:cmd+=['--overwrite']
@@ -76,6 +67,8 @@ def _read_profiles():
     p=_profiles_path();return json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'profiles':[]}
 
 def profile_cmd(args):
+    import re
+    if args.profile_command!='list' and not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]*',args.name):raise ValueError('Use a plain profile name.')
     doc=_read_profiles()
     if args.profile_command=='list':
         print(json.dumps(doc,indent=2));return 0
@@ -127,6 +120,18 @@ def train_cmd(args):
         print('Installed gate-passing adapter without intermediate checkpoints:',dest)
     else:print('Candidate kept in staging:',staging)
     return 0
+
+def plan_cmd(args):
+    p=ensure_workspace()
+    dataset=args.dataset or load_config().get('runtime',{}).get('default_dataset')
+    if not dataset:dataset=str(_latest_dataset(p))
+    config=args.config or str(_profiles_path())
+    output=p.workspace/'training-plan.json'
+    code=run_module('persona.trainer_v4',['plan','--dataset-root',dataset,'--config',config,'--output',output])
+    if code:return code
+    report=json.loads(output.read_text(encoding='utf-8'))
+    rows=report.get('profiles',[])
+    return 0 if rows and all(row.get('status')=='ready' for row in rows) else 1
 
 def benchmark_cmd(args):
     p=ensure_workspace();out=p.workspace/'benchmark';out.mkdir(parents=True,exist_ok=True)
@@ -186,7 +191,7 @@ def main(argv=None):
     ap=argparse.ArgumentParser(prog='studio',description='Persona Activation Studio')
     sub=ap.add_subparsers(dest='command',required=True)
     sub.add_parser('init').set_defaults(func=init_cmd)
-    sub.add_parser('doctor').set_defaults(func=doctor_cmd)
+    d=sub.add_parser('doctor');d.add_argument('--require',action='append',choices=['core','native','train','scrape']);d.set_defaults(func=doctor_cmd)
     sub.add_parser('check',help='Run isolated, model-free software checks').set_defaults(func=check_cmd)
     a=sub.add_parser('app');a.add_argument('--port',type=int);a.set_defaults(func=app_cmd)
     n=sub.add_parser('native');n.add_argument('--cuda',action='store_true');n.set_defaults(func=native_cmd)
@@ -202,6 +207,7 @@ def main(argv=None):
     d=sub.add_parser('dataset');ds=d.add_subparsers(dest='dataset_command',required=True);q=ds.add_parser('build');q.add_argument('--revision');q.add_argument('--output');q.add_argument('--overwrite',action='store_true');q.set_defaults(func=dataset_cmd)
     pr=sub.add_parser('profile');ps=pr.add_subparsers(dest='profile_command',required=True);ps.add_parser('list');q=ps.add_parser('add');q.add_argument('name');q.add_argument('--dataset-profile');q.add_argument('--tier',default='core',choices=['core','extended']);q.add_argument('--max-steps',type=int,default=0);q.add_argument('--max-rows',type=int,default=0);q.add_argument('--max-length',type=int,default=0);pr.set_defaults(func=profile_cmd)
     t=sub.add_parser('train');t.add_argument('profile');t.add_argument('--dataset');t.add_argument('--config');t.add_argument('--model',help='Base model; defaults to Qwen/Qwen3-4B for new runs, or the pinned model on resume');t.add_argument('--anchors');t.add_argument('--max-steps',type=int,default=0);t.add_argument('--resume',action='store_true');t.add_argument('--run-dir',help='Exact unfinished Studio run to resume');t.add_argument('--no-install',action='store_true');t.set_defaults(func=train_cmd)
+    q=sub.add_parser('plan',help='Validate configured persona datasets without training');q.add_argument('--dataset');q.add_argument('--config');q.set_defaults(func=plan_cmd)
     b=sub.add_parser('benchmark');b.add_argument('--base-model',default='Qwen/Qwen3-4B');b.add_argument('--quick',action='store_true');b.add_argument('--only',nargs='*');b.set_defaults(func=benchmark_cmd)
     sub.add_parser('seal').set_defaults(func=lambda a:(print('SEALED',len(__import__('integrity').seal_release()['files'])) or 0))
     sub.add_parser('verify').set_defaults(func=lambda a:(print(__import__('integrity').verify_release(native=True)) or 0))

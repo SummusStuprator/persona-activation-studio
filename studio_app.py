@@ -24,6 +24,11 @@ def quick_ollama_count():
     return len(grouped_inventory()[0])
 
 
+@st.cache_data(ttl=120)
+def quick_persona_count():
+    from workshop_v2.persona_store import discover
+    return len(discover()[0])
+
 def render_jobs():
     rows=[]
     for p in sorted(jobs_dir().glob('*.json'),reverse=True)[:20]:
@@ -48,11 +53,17 @@ if page=='Overview':
     st.title('Persona Activation Studio')
     st.write('One local project for X collection → context-aware persona datasets → LoRA training → white-box activation analysis and steering.')
     cols=st.columns(4)
-    cols[0].metric('Dataset revisions',len([x for x in P.datasets.glob('*') if x.is_dir()]))
-    cols[1].metric('Installed personas',len([x for x in P.models.glob('*') if x.is_dir()]))
+    external=load_config().get('runtime',{}).get('default_dataset')
+    revisions={str(x.resolve()) for x in P.datasets.glob('*') if x.is_dir()}
+    if external and Path(external).is_dir():revisions.add(str(Path(external).resolve()))
+    cols[0].metric('Available dataset revisions',len(revisions))
+    cols[1].metric('Discoverable personas',quick_persona_count())
     cols[2].metric('Local Ollama models',quick_ollama_count())
     cols[3].metric('Built direction banks',len([x for x in (REPO_ROOT/'vectors').glob('*') if x.is_dir()]) if (REPO_ROOT/'vectors').exists() else 0)
     st.code('studio scrape setup\nstudio scrape scrape --handle @example\nstudio scrape context --handle @example\nstudio dataset build\nstudio profile add example\nstudio train example\nstudio app',language='text')
+    if external:st.caption('Existing dataset used in place: '+external)
+    if st.button('Run software checks'):
+        pid,log=launch_job('software-check',['check']);st.success('Checks started; see Jobs for the outcome.')
     st.subheader('Workspace paths');st.json({k:str(v) for k,v in P.__dict__.items()})
 
 elif page=='Collect X data':
@@ -84,18 +95,32 @@ elif page=='Build dataset':
 
 elif page=='Train persona':
     st.title('Train persona adapter')
-    name=st.text_input('Profile name')
+    from studio_cli import _read_profiles
+    profiles=_read_profiles().get('profiles',[])
+    selected=st.selectbox('Existing profile',['New profile']+[x['profile'] for x in profiles])
+    name=st.text_input('Profile name','' if selected=='New profile' else selected,key='profile-name-'+selected)
     tier=st.selectbox('Dataset tier',['core','extended'])
-    base=st.text_input('Base model','Qwen/Qwen3-4B')
-    steps=st.number_input('Max optimizer steps (0 = automatic)',0,5000,0,10)
-    anchors=st.text_input('Optional anchors JSON',str(P.anchors/(name+'.json')) if name else '')
-    if st.button('Save profile config',disabled=not name):
+    resume=st.checkbox('Resume an unfinished training run',False)
+    revisions=sorted([x for x in P.datasets.glob('*') if x.is_dir()],key=lambda x:x.stat().st_mtime,reverse=True)
+    default_dataset=str(revisions[0]) if revisions else load_config().get('runtime',{}).get('default_dataset','')
+    dataset=st.text_input('Dataset revision directory',default_dataset,disabled=resume)
+    base=st.text_input('Base model','Qwen/Qwen3-4B',disabled=resume)
+    steps=st.number_input('Max optimizer steps (0 = automatic)',0,5000,0,10,disabled=resume)
+    anchors=st.text_input('Optional anchors JSON',str(P.anchors/(name+'.json')) if name else '',disabled=resume)
+    run_dir=st.text_input('Exact unfinished run directory (optional)',disabled=not resume)
+    if resume:st.info('Resume retains the saved model, dataset contents, profile, anchors and step budget. It never silently starts over.')
+    if st.button('Save profile config',disabled=not name or resume):
         cmd=[sys.executable,'-m','studio_cli','profile','add',name,'--tier',tier]+(['--max-steps',str(int(steps))] if steps else [])
-        subprocess.check_call(cmd,cwd=REPO_ROOT);st.success('Profile saved.')
-    if st.button('Start training',type='primary',disabled=not name):
-        args=['train',name,'--model',base]+(['--max-steps',str(int(steps))] if steps else [])
-        if anchors and Path(anchors).expanduser().is_file():args+=['--anchors',anchors]
-        pid,log=launch_job('train-'+name,args);st.success(f'Started PID {pid}: {log.name}')
+        result=subprocess.run(cmd,cwd=REPO_ROOT,capture_output=True,text=True)
+        if result.returncode:st.error(result.stderr)
+        else:st.success('Profile saved.')
+    if st.button('Resume training' if resume else 'Start training',type='primary',disabled=not name):
+        args=['train',name]
+        if resume:args+=['--resume']+(['--run-dir',run_dir] if run_dir else [])
+        else:
+            args+=['--model',base]+(['--dataset',dataset] if dataset else [])+(['--max-steps',str(int(steps))] if steps else [])
+            if anchors and Path(anchors).expanduser().is_file():args+=['--anchors',anchors]
+        pid,log=launch_job('train-'+name,args);st.success(f'Job started or already active: PID {pid}; {log.name}')
     render_jobs()
 
 elif page in ('Chat','Hell lab','Activations','Emotion library','Concept builder','Experiments','J-space','Paper reproduction'):
@@ -111,6 +136,13 @@ elif page in ('Chat','Hell lab','Activations','Emotion library','Concept builder
     if not model_loader(engine):
         st.write('Choose a GGUF or persona adapter in the sidebar and load it.')
     else:
+        identity=(engine.model['digest'],engine.abi,engine.process.pid)
+        if st.session_state.get('studio_model_identity')!=identity:
+            for key in list(st.session_state):
+                if key.startswith(('live_','hell_','mixdose_','mixsource_','mixlayer_','cal_','chat_sampler_')) or key in ('dialogue','latest_run','workshop_probe','watch_axes','control_axes','system_instruction','local_lens','full_lens','j_frame','j_readout'):
+                    st.session_state.pop(key,None)
+            st.session_state['studio_model_identity']=identity
+            if engine.model.get('backend')=='persona_peft':st.session_state['live_thinking']='disabled' if 'enable_thinking' in engine.model.get('chat_template','') else 'auto'
         bank=load_bank(engine)
         st.caption(f"Loaded: {engine.model['name']} · {engine.layers} blocks · {len(bank)} directions")
         if page=='Hell lab':

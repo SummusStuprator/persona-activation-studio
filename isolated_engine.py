@@ -131,7 +131,6 @@ class Engine:
             except Exception:
                 if launch is not None:launch.close()
                 raise
-            if resource_plan['cooperative'] and mode=='Manual':mode='Auto';manual=0
             if model.get('backend') == 'persona_peft':
                 from workshop_v2.persona_store import settings
                 self.worker_python = settings()['python']

@@ -62,3 +62,7 @@ trusted-files.json
 datasets/goemotions/
 concepts/recipes/
 native/build*/
+
+# Separate native build/staging generations
+native/build-*/
+native/runtime-stage-*/

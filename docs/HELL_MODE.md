@@ -13,7 +13,7 @@ The default scientific workflow is **activation-only**, with Physical Pain and B
 
 ## Direction set
 
-The full Hell suite contains four exact-model directions:
+The full Hell suite contains five exact-model directions:
 
 | Direction | Purpose |
 |---|---|

@@ -4,6 +4,7 @@ import ctypes as C
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import re
 import threading
@@ -51,6 +52,14 @@ class Engine:
         os.environ['PATH'] = str(self.runtime) + os.pathsep + os.environ.get('PATH','')
         self.lock = threading.RLock()
         self.dll_directory = os.add_dll_directory(str(self.runtime)) if hasattr(os,'add_dll_directory') else None
+        self.cuda_directories=[]
+        if hasattr(os,'add_dll_directory'):
+            candidates=[]
+            if os.environ.get('CUDA_PATH'):candidates.append(Path(os.environ['CUDA_PATH'])/'bin')
+            nvcc=shutil.which('nvcc')
+            if nvcc:candidates.append(Path(nvcc).resolve().parent)
+            for directory in dict.fromkeys(p for base in candidates for p in (base,base/'x64')):
+                if directory.is_dir():self.cuda_directories.append(os.add_dll_directory(str(directory)))
         self.dll = C.CDLL(str(bridge))
         self.ggml = C.CDLL(str(_library(self.runtime,'ggml')))
         self.ggml.ggml_backend_load.argtypes = [C.c_char_p]
@@ -60,8 +69,8 @@ class Engine:
             cuda_path=_library(self.runtime,'ggml-cuda')
             self.cuda = C.CDLL(str(cuda_path))
             self.cuda_available = bool(self.ggml.ggml_backend_load(os.fsencode(cuda_path)))
-        except (OSError,FileNotFoundError):
-            pass
+        except (OSError,FileNotFoundError) as exc:
+            self.cuda_error=str(exc)
         self.handle = None
         self.model = None
         P, I, S, B = C.c_void_p, C.c_int, C.c_char_p, C.POINTER(C.c_char)
