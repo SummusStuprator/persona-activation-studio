@@ -32,6 +32,12 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit.validate_entry('example.txt', ('/ho' + 'me/example/private').encode())
 
+    def test_source_line_endings_are_portable(self):
+        self.assertTrue(audit.source_matches(b'one\ntwo\n', b'one\r\ntwo\r\n'))
+
+    def test_different_source_content_is_rejected(self):
+        self.assertFalse(audit.source_matches(b'one\ntwo\n', b'one\r\nthree\r\n'))
+
     def test_documentation_can_name_configuration_files(self):
         audit.validate_entry('README.md', b'Configure studio.toml and run studio check.')
 

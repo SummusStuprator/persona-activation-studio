@@ -32,6 +32,12 @@ def validate_entry(name, data):
         raise ValueError('Credential or workstation-path pattern in: ' + name)
 
 
+def source_matches(packaged, source):
+    if b'\0' not in packaged and b'\0' not in source:
+        return packaged.replace(b'\r\n', b'\n') == source.replace(b'\r\n', b'\n')
+    return packaged == source
+
+
 def version():
     tree = ast.parse((ROOT / 'studio_version.py').read_text(encoding='utf-8'))
     return next(ast.literal_eval(n.value) for n in tree.body
@@ -84,9 +90,9 @@ def verify(folder, write=False):
         for name in names:
             target = name if name in entries else prefix + name
             if target in entries and (ROOT / name).is_file():
-                if entries[target] != (ROOT / name).read_bytes():
+                if not source_matches(entries[target], (ROOT / name).read_bytes()):
                     raise ValueError(f'{path.name}: stale packaged file {name}')
-        if entries.get('studio_version.py') != (ROOT / 'studio_version.py').read_bytes():
+        if not source_matches(entries.get('studio_version.py', b''), (ROOT / 'studio_version.py').read_bytes()):
             raise ValueError(path.name + ': incorrect packaged version')
         hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
     report = {'version': current, 'commit': git('rev-parse', 'HEAD'),
