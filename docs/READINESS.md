@@ -1,4 +1,16 @@
-# 0.3.0 verification
+# Verification records
+
+## Release CI
+
+The release commit is recorded in `release.json`. Its GitHub Actions run contains the installed-wheel results for Windows/Linux and Python 3.11–3.13, the Linux CPU-native build, and the aggregate Release gate.
+
+## 0.3.2 — 23 September 2026
+
+Windows source: 59 regressions and 14 UI routes passed. Ubuntu 22.04 / Python 3.13: the installed wheel passed 59 regressions and 14 UI routes. The native CUDA generation/intervention/reset test and the actual CUDA NF4 persona sidebar load passed on the Windows test machine.
+
+The 0.3.3 changes affect packaging, CI, release checks, and documentation. The numerical backend files are unchanged from 0.3.2.
+
+## 0.3.0
 
 Executed on 22 September 2026.
 

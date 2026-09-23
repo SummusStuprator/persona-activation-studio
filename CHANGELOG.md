@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+
+- Validate source, release archives, version metadata, and commit-bound checksums.
+- Run installed-wheel checks across Windows/Linux and Python 3.11–3.13.
+- Add a single release CI gate and retain tested distribution artifacts.
+- Document branch review, tagged uploads, and public-release procedure.
+- Update citation metadata and retain versioned verification records.
+
 ## 0.3.2
 
 - Read runtime policy without resolving unrelated workspace paths.

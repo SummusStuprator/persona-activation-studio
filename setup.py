@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent
 RESOURCE_PATTERNS = (
     'README.md', 'LICENSE', 'THIRD_PARTY.md', 'studio.toml.example', 'pyproject.toml',
     'CONTRIBUTING.md',
-    'docs/*.md', 'scripts/*.ps1', 'scripts/*.sh', 'native/*.cpp',
+    'docs/*.md', 'scripts/*.ps1', 'scripts/*.sh', 'scripts/*.py', 'native/*.cpp',
     'native/CMakeLists.txt', 'paper/README.md', 'paper/LICENSE',
     'paper/datasets/*.json', 'tests/*.py', 'examples/**/*',
     'constraints/*.txt', 'CHANGELOG.md', 'SECURITY.md', 'CITATION.cff',

@@ -4,6 +4,6 @@ title: "Persona Activation Studio"
 type: software
 authors:
   - name: "Persona Activation Studio contributors"
-version: "0.3.0"
+version: "0.3.3"
 repository-code: "https://github.com/SummusStuprator/persona-activation-studio"
 license: MIT

@@ -88,7 +88,7 @@ Direction banks are keyed by model files and numerical runtime. CPU, CUDA BF16, 
 
 ## Documentation
 
-[Installation](docs/INSTALL.md) · [Workflow](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/HELL_MODE.md) · [Release checks](docs/VALIDATION.md) · [Contributing](CONTRIBUTING.md)
+[Installation](docs/INSTALL.md) · [Workflow](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/HELL_MODE.md) · [Release checks](docs/VALIDATION.md) · [Publishing](docs/PUBLISHING.md) · [Contributing](CONTRIBUTING.md)
 
 ## License
 
