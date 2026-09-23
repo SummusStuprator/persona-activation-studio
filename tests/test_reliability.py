@@ -38,7 +38,7 @@ class TrainingResumeTests(unittest.TestCase):
         self.args.resume=True
         with self.assertRaisesRegex(ValueError,'2 resumable'):resolve_training_run(self.args,self.p)
         self.args.run_dir=str(a)
-        self.assertEqual(resolve_training_run(self.args,self.p)[0],a)
+        self.assertTrue(resolve_training_run(self.args,self.p)[0].samefile(a))
     def test_changed_dataset_is_rejected(self):
         folder,_=resolve_training_run(self.args,self.p);self.checkpoint(folder)
         self.args.resume=True;self.args.dataset=str(self.p.datasets/'other')

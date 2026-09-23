@@ -7,6 +7,7 @@
 - Add a single release CI gate and retain tested distribution artifacts.
 - Document branch review, tagged uploads, and public-release procedure.
 - Update citation metadata and retain versioned verification records.
+- Compare resumed-directory identity across Windows short-path aliases in CI.
 
 ## 0.3.2
 
