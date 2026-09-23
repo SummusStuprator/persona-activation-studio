@@ -23,7 +23,6 @@ jobs:
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: utf-8
-      STUDIO_HOME: ${{ runner.temp }}/studio-state
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,6 +30,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python }}
+      - name: Configure isolated state
+        shell: bash
+        run: echo "STUDIO_HOME=$RUNNER_TEMP/studio-state" >> "$GITHUB_ENV"
       - run: python -m pip install build
       - run: python -m build
       - run: python scripts/verify_release.py --write
@@ -62,8 +64,6 @@ jobs:
     name: Native CPU (Linux)
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    env:
-      STUDIO_HOME: ${{ runner.temp }}/studio-native
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,6 +71,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
+      - name: Configure isolated state
+        run: echo "STUDIO_HOME=$RUNNER_TEMP/studio-native" >> "$GITHUB_ENV"
       - run: python -m pip install build "cmake>=3.24"
       - run: python -m build --wheel
       - run: python -c "import glob,subprocess,sys; subprocess.check_call([sys.executable,'-m','pip','install',*glob.glob('dist/*.whl')])"
