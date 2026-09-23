@@ -107,7 +107,7 @@ class Engine:
             self.process = self.connection = None
             if process is None: return
             try:
-                descendants = psutil.Process(process.pid).children(recursive=True)
+                descendants = psutil.Process(process.pid).children(recursive=True) if process.poll() is None else []
             except psutil.Error:
                 descendants = []
             try:
@@ -125,7 +125,11 @@ class Engine:
                     try:
                         if child.is_running(): child.terminate()
                     except psutil.Error: pass
-                _, alive = psutil.wait_procs(descendants, timeout=2)
+                try:
+                    _, alive = psutil.wait_procs(descendants, timeout=2)
+                except psutil.Error as exc:
+                    self.cleanup_error = f'{type(exc).__name__}: {exc}'
+                    alive = []
                 for child in alive:
                     try: child.kill()
                     except psutil.Error: pass

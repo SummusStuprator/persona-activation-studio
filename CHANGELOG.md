@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2
+
+- Read runtime policy without resolving unrelated workspace paths.
+- Check the RAM floor before prefill and between decoded tokens.
+- Preserve worker-exit errors when descendant cleanup reports access denied.
+- Avoid descendant lookup after the parent process has exited.
+- Add memory-boundary and worker-shutdown regression tests.
+
 ## 0.3.1
 
 - Cache token text and end-of-generation metadata within each worker lifetime.

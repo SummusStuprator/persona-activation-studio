@@ -17,8 +17,13 @@ def settings():
     if path.exists():
         result.update(json.loads(path.read_text(encoding='utf-8')))
     try:
-        from studio_config import load_config
-        configured=load_config().get('runtime',{}).get('cpu_threads')
+        from studio_paths import config_path
+        import tomllib
+        configured=None
+        path=config_path()
+        if path.is_file():
+            with path.open('rb') as stream:
+                configured=tomllib.load(stream).get('runtime',{}).get('cpu_threads')
         if configured is not None:result['threads']=configured
     except Exception:
         pass

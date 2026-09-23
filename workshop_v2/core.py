@@ -7,6 +7,7 @@ import time
 import uuid
 from pathlib import Path
 import numpy as np
+from .resource_policy import checkpoint
 
 from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
 ROOT = data_root()
@@ -68,8 +69,9 @@ def iter_generate(engine, text, bank, controls=(), watch=(), max_tokens=256,
     with engine.lock:
         try:
             engine.clear_steering(); engine.reset()
+            checkpoint()
             if scope == 'generation' and len(tokens) > 1:
-                engine.evaluate(tokens[:-1]); configure(engine, table, controls, phase_enabled())
+                engine.evaluate(tokens[:-1]); checkpoint(); configure(engine, table, controls, phase_enabled())
                 engine.evaluate(tokens[-1:])
             else:
                 configure(engine, table, controls, phase_enabled()); engine.evaluate(tokens)
@@ -108,6 +110,7 @@ def iter_generate(engine, text, bank, controls=(), watch=(), max_tokens=256,
                 if repetition_guard and len(ids)>=24 and ids[-8:]==ids[-16:-8]==ids[-24:-16]:
                     stop_reason='repetition_guard'; break
                 if step+1 < max_tokens:
+                    checkpoint()
                     configure(engine,table,controls,phase_enabled())
                     engine.evaluate(np.array([token],np.int32))
             output += decoder.decode(b'', final=True)

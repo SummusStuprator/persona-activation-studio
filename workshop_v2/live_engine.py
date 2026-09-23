@@ -10,6 +10,7 @@ import time
 import numpy as np
 from .core import configure, identity, write_result
 from .sampling import draw
+from .resource_policy import checkpoint
 from .reasoning import initial_phase, split_output, phase_summary
 from .steering_controls import validate, measurements, check_injection
 
@@ -44,6 +45,7 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
     with engine.lock:
         try:
             engine.clear_steering(); engine.reset()
+            checkpoint()
             # Native prefill is not interrupted halfway; cancellation is checked on return.
             if scope=='generation' and len(tokens)>1: engine.evaluate(tokens[:-1])
             for step in range(int(max_tokens)):
@@ -65,6 +67,7 @@ def stream(engine, prompt, bank, controller, watch=(), max_tokens=512,
                 if configuration != applied_configuration:
                     configure(engine,table,controls,enabled)
                     applied_configuration=configuration
+                checkpoint()
                 current=tokens if step==0 and scope=='all' else (tokens[-1:] if step==0 else np.array([generated[-1]],np.int32))
                 engine.evaluate(current)
                 pre,post=engine.capture(0),engine.capture(1)
