@@ -34,12 +34,14 @@ def doctor_cmd(args):
 
 
 def scrape_cmd(args):
+    from persona.handles import normalized_handle
+    handles = [normalized_handle(h) for h in getattr(args, 'handle', []) or []]
     p=ensure_workspace();base=['--db',str(p.account_db)]
     sub=args.scrape_command
     tail=[]
     if sub in ('scrape','status','context','export'):
         tail+=['--output-dir',str(p.exports)]
-    for h in getattr(args,'handle',[]) or []:tail+=['--handle',h]
+    for h in handles:tail+=['--handle',h]
     if sub=='setup':
         if args.alias:tail+=['--alias',args.alias]
         if args.replace:tail+=['--replace']

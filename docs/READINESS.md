@@ -1,5 +1,15 @@
 # Verification records
 
+## 0.3.4 — 24 September 2026
+
+Windows/Python 3.12: 80 regression tests and all 14 model-free UI routes passed from both source and a regular wheel installation outside the checkout. Checks include local-export dataset construction, input validation, archive/history regressions and documentation links. Dependency consistency, the offline dataset demo and source sealing also passed. Artifact hashes and source identity are recorded in `release.json`.
+
+The release audit checks tracked files, distribution contents and locally reachable Git history for known private-file, credential and workstation-path patterns. A passing pattern scan does not prove absence of every possible private datum.
+
+The [0.3.3 hosted workflow](https://github.com/SummusStuprator/persona-activation-studio/actions/runs/35859676895) passed all six Windows/Linux Python jobs, Linux native build and Release gate for commit `c57cd2d64f12516370ab12107eea01f0194ef21e`. The 0.3.4 release requires its own successful hosted matrix before publication.
+
+Real X collection, full persona training and CUDA/model inference were not rerun for 0.3.4. Existing hardware/model records below are historical. Numerical training/steering algorithms are unchanged; model-store discovery, input validation, documentation/UI wording, package metadata/resources and release auditing changed. Software verification does not establish a new pain-related scientific result.
+
 ## Release CI
 
 The release commit is recorded in `release.json`. Its GitHub Actions run contains the installed-wheel results for Windows/Linux and Python 3.11–3.13, the Linux CPU-native build, and the aggregate Release gate.

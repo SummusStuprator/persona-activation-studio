@@ -1187,8 +1187,8 @@ Each SFT row uses generic chat messages and ends in the observed profile respons
 - `queues/unintelligible_or_corrupt.jsonl`: obvious encoding corruption only.
 
 Generated prompt candidates should remain supplemental and should never be merged into
-canonical SFT without review. The companion `generate_prompt_candidates_ollama.py` writes
-candidates to a separate file and does not modify these datasets.
+canonical SFT without review. Studio does not include a prompt-generation command for
+these queues. Portable handles do not anonymize post text or source metadata.
 
 ## Deduplication and leakage controls
 

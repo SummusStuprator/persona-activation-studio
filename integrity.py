@@ -37,7 +37,7 @@ def _files():
     for package in ('workshop_v2', 'persona'):
         code.extend((CODE_ROOT / package).glob('*.py'))
     assets = []
-    for pattern in ('docs/*.md', 'scripts/*', 'tests/*.py', 'native/*.cpp',
+    for pattern in ('docs/**/*.md', 'scripts/*', 'tests/*.py', 'native/*.cpp',
                     'native/CMakeLists.txt', 'paper/datasets/*.json',
                     'studio.toml.example', 'README.md', 'pyproject.toml'):
         assets.extend(p for p in ASSET_ROOT.glob(pattern) if p.is_file())

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.4
+
+- Add comprehensive onboarding, input schema, data-permission and troubleshooting documentation.
+- Clarify experimental pain claims, first-turn comparators and scientific limits in docs/UI.
+- Include nested release notes in wheels and source seals.
+- Validate X handles before using them in queries or file paths.
+- Honor explicit model-store isolation without falling back to the default private store.
+- Use current SPDX license metadata for package builds.
+- Audit missing packaged source, dirty checkouts, duplicate archive members and private artifact patterns.
+- Add reachable-history scanning and regression coverage for release/input validation.
+- Remove generated dataset documentation referencing an unbundled script.
+
 ## 0.3.3
 
 - Validate source, release archives, version metadata, and commit-bound checksums.

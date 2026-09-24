@@ -60,6 +60,8 @@ st.sidebar.caption(str(P.workspace))
 if page=='Overview':
     st.title('Persona Activation Studio')
     st.write('One local project for X collection → context-aware persona datasets → LoRA training → white-box activation analysis and steering.')
+    st.info('Start with the offline demo: install the core app, run studio demo, then explore Guide. Real persona training also needs the training extra and an NVIDIA CUDA GPU.')
+    st.caption('Personas approximate writing patterns. Activation and pain-language scores do not establish subjective experience.')
     if st.button('Refresh model counts'):
         with st.spinner('Scanning model metadata...'):
             st.session_state['overview_counts'] = (quick_persona_count(), quick_ollama_count())
@@ -83,6 +85,7 @@ if page=='Overview':
 elif page=='Collect X data':
     st.title('Collect X data')
     st.write('Session credentials stay in the local twscrape database under the workspace and are ignored by Git.')
+    st.warning('Collection access is not training permission. X’s Developer Agreement restricts using X Content to train or fine-tune foundation models. Review Guide → docs/DATA_AND_PERMISSIONS.md before collecting or training.')
     handles=st.text_area('Handles, one per line','',height=140)
     hs=[x.strip().lstrip('@') for x in handles.splitlines() if x.strip()]
     c1,c2,c3=st.columns(3)
@@ -184,7 +187,7 @@ elif page=='Jobs':
 
 elif page=='Guide':
     st.title('Guide')
-    for name in ('README.md','docs/INSTALL.md','docs/USER_GUIDE.md','docs/HELL_MODE.md','docs/VALIDATION.md'):
+    for name in ('README.md','docs/INSTALL.md','docs/QUICKSTART.md','docs/USER_GUIDE.md','docs/DATA_AND_PERMISSIONS.md','docs/HELL_MODE.md','docs/TROUBLESHOOTING.md','docs/VALIDATION.md'):
         p=ASSET_ROOT/name
         if p.exists():
             with st.expander(name,expanded=name=='README.md'):st.markdown(p.read_text(encoding='utf-8'))

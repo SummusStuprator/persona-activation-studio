@@ -15,7 +15,8 @@ from workshop_v2.paper_reproduction import original_prompts
 class ReleaseTests(unittest.TestCase):
     def test_runtime_assets(self):
         for name in ('studio.toml.example', 'native/bridge.cpp', 'native/CMakeLists.txt',
-                     'docs/INSTALL.md', 'paper/datasets/4.2_neutral_50.json', 'tests/ui_smoke.py'):
+                     'docs/INSTALL.md', 'docs/releases/0.3.4.md', 'docs/DATA_AND_PERMISSIONS.md',
+                     'docs/TROUBLESHOOTING.md', 'paper/datasets/4.2_neutral_50.json', 'tests/ui_smoke.py'):
             self.assertTrue((ASSET_ROOT/name).is_file(), name)
         prompts = original_prompts()
         self.assertEqual(len(prompts), 50)

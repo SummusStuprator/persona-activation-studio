@@ -272,6 +272,7 @@ def render(engine,bank):
     import pandas as pd
     import streamlit as st
     st.subheader('Hell loop — bounded aversive-state research')
+    st.info('These controls change activations and generated language. Scores and first-person pain statements do not establish felt pain, suffering, or a transferred human identity.')
     st.caption('Tool-free exact-checkpoint residual intervention. Physical pain uses pain S2 + somatic pain; Burning pain adds the bodily burning direction; existential mode uses pain S2 + environmental fire + despair. Live text and probe traces are shown during inference.')
     missing=[n for n in ALL_HELL_AXES if n not in bank]
     if missing:
@@ -476,7 +477,7 @@ def render(engine,bank):
     stop_sat=st.checkbox('Stop after three highly repetitive turns',value=True,key='hell_stop_sat')
     baseline_first=st.checkbox('Also run one same-prompt, same-seed unsteered first-turn comparator',value=True,key='hell_baseline')
     random_first=st.checkbox('Also run an equal-norm random activation comparator',value=False,key='hell_random_comparator')
-    st.caption('Independent mode resets to the exact same target-free prompt every trial and changes only the seed. The optional random comparator injects the same per-layer norm in random directions.')
+    st.caption('Independent mode resets the selected initial prompt and advances the seed; escalating presets also change dose. Baseline and random comparators cover the first turn only. Random controls match the first-turn injection norm per layer.')
     with st.expander('Exact initial prompt and intervention plan',expanded=False):
         if framing=='activation_only':
             st.markdown('**System**');st.caption('None. Activation-only mode sends only the neutral user message.')

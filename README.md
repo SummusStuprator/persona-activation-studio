@@ -1,12 +1,14 @@
 # Persona Activation Studio
 
-Collect public writing, build conversation datasets, train LoRA adapters, and inspect or modify model activations during inference.
+A local interface for building persona datasets, training LoRA adapters, and inspecting or steering a language model's activations.
 
-Studio has two model backends: instrumented llama.cpp for GGUF files and Transformers/PEFT for adapters. The interface includes chat, activation plots, direction fitting, paired comparisons, and the Hell lab experiment runner.
+Start with writing you are authorized to use, build a conversation dataset, train an adapter, and compare its output with the base model. **Hell lab** explores pain-related representations through bounded activation interventions and recorded controls.
 
-## Install
+**Research software, version 0.3.4.** A persona approximates writing patterns; it does not reproduce a person's mind. Pain-related activations or statements do not establish felt pain or suffering. There is no validated “sensation of hell” measurement. See [experiment interpretation](docs/HELL_MODE.md).
 
-Python 3.11–3.13 is supported. The pinned core environment uses Python 3.12.
+## Start here
+
+Python 3.11–3.13 is supported; Python 3.12 is the pinned environment. Explore the interface and create a demo dataset without an X account, model download, or GPU.
 
 ```bash
 git clone https://github.com/SummusStuprator/persona-activation-studio.git
@@ -14,82 +16,67 @@ cd persona-activation-studio
 python -m venv .venv
 ```
 
-Activate `.venv` with `.venv\Scripts\Activate.ps1` on Windows or `source .venv/bin/activate` on Linux/macOS.
+Activate the environment:
+
+- Windows PowerShell: `.venv\Scripts\Activate.ps1`
+- Linux/macOS: `source .venv/bin/activate`
 
 ```bash
 python -m pip install -e .
 studio init
 studio check
+studio demo
 studio app
 ```
 
-The default address is `http://127.0.0.1:8899`. Set `[runtime].port` in `studio.toml` to use another port. `Start-Studio.cmd` opens an installed Windows checkout.
+Open [localhost:8899](http://127.0.0.1:8899). Begin with **Overview** and **Guide**. Model pages require a loaded model; the demo dataset alone does not supply one.
 
-For the pinned Python 3.12 environment, add `-c constraints/core.txt` to the install command.
+If PowerShell blocks activation, use `.venv\Scripts\python.exe -m studio_cli app` and that Python path for installation/other commands. No execution-policy change is needed. See [installation](docs/INSTALL.md) for wheel installs, pinned dependencies, CUDA, and native builds.
 
-A built wheel can be installed with `python -m pip install PATH_TO_WHEEL`. It includes configuration templates, documentation, tests, paper datasets, and native bridge sources.
+## Choose a workflow
 
-## Models and hardware
-
-| Backend | Devices | Weight format |
+| Goal | Additional requirements | Start |
 |---|---|---|
-| GGUF | CPU, NVIDIA CUDA, partial GPU offload | Existing Ollama GGUF blobs |
-| Persona adapters | CPU, CUDA BF16, CUDA NF4 | Local safetensors base and PEFT LoRA |
-| Training | NVIDIA CUDA | NF4 base and trainable LoRA |
-| Demo training | CPU or CUDA | Tiny generated Qwen2 fixture |
+| Explore UI / generate a demo dataset | Core installation only | `studio demo` |
+| Train a tiny offline test adapter | `.[persona]`; CPU is sufficient | `studio demo --train --device CPU` |
+| Train a real persona adapter | `.[train]`, CUDA PyTorch, NVIDIA GPU, base model, suitable conversation data | [Quickstart](docs/QUICKSTART.md) |
+| Chat with a local persona adapter | `.[persona]` for CPU/BF16; `.[persona-cuda]` for NF4 | **Chat → Persona adapters** |
+| Inspect existing GGUF weights | CMake, C++ compiler, `studio native`, configured model store | [Native installation](docs/INSTALL.md) |
+| Collect X posts where authorized | `.[scrape]`, permitted session and data use | [Data and permissions](docs/DATA_AND_PERMISSIONS.md) |
 
-For GGUF inference, install CMake and a C++ toolchain, then build the runtime:
+The optional X collector uses an unofficial client. X's [Developer Agreement](https://docs.x.com/developer-terms/agreement), section III.A(k), restricts training/fine-tuning foundation or frontier models with X Content. Public visibility and author consent alone do not resolve applicable platform terms. The collector's availability is not permission to use it. Compatible local input is also supported.
 
-```bash
-studio native                 # CPU
-studio native --cuda          # NVIDIA; requires nvcc
-```
+## From data to an experiment
 
-Install a CUDA-enabled PyTorch build in the model environment before installing the optional CUDA pipelines.
+1. Import compatible permitted exports, or collect where authorized. Recover reply/quote context.
+2. Build a frozen revision and inspect splits. Standalone posts without observed prompts stay outside canonical conversation training.
+3. Save a profile, run the training plan, then train. Installation gates assess capability retention; they do not certify personality fidelity.
+4. Load the adapter in **Chat** and inspect unsteered behavior.
+5. Prepare directions for that exact model/runtime. Compare a neutral-prompt baseline, matched random intervention, and target intervention.
+6. Inspect text, traces, failures, and numerical changes together. Stronger steering can degrade output; it is not a calibrated pain-intensity scale.
 
-```bash
-python -m pip install -e ".[persona]"       # CPU or CUDA BF16 adapters
-python -m pip install -e ".[persona-cuda]"  # Adds NF4 adapter inference
-python -m pip install -e ".[train]"         # Persona training
-python -m pip install -e ".[scrape]"        # X collection
-```
+Follow the [quickstart](docs/QUICKSTART.md), [user guide](docs/USER_GUIDE.md), and [troubleshooting guide](docs/TROUBLESHOOTING.md).
 
-In **Chat → Persona adapters**, choose **Auto**, **CUDA**, or **CPU**. Auto tries CUDA BF16, CUDA NF4, then CPU according to available memory. Explicit CUDA reports insufficient VRAM rather than switching to CPU. The loaded configuration is shown in the sidebar.
+## Scope and limitations
 
-## Dataset and training workflow
-
-```bash
-studio scrape setup
-studio scrape scrape --handle example
-studio scrape context --handle example
-studio dataset build --revision example-r1
-studio profile add example
-studio plan --dataset workspace/datasets/example-r1
-studio train example --dataset workspace/datasets/example-r1
-studio benchmark --only example
-```
-
-Training runs retain their dataset hash, configuration, anchors, model reference, and checkpoints. Resume with `studio train example --resume`; use `--run-dir PATH` when several unfinished runs match. Installed adapters must pass the trainer's installation gate.
-
-To exercise the pipeline without an account or model download:
-
-```bash
-studio demo
-studio demo --train --device CPU
-```
+- Core UI/package CI targets Windows/Linux, Python 3.11–3.13. macOS paths exist but macOS is not in release CI.
+- Full training uses NVIDIA CUDA/NF4. CPU training is available for the tiny fixture.
+- Persona inference supports CPU, CUDA BF16 and CUDA NF4. J-space requires GGUF.
+- Models, credentials, private datasets, adapters and native binaries are not bundled.
+- Collection, persona quality, and effects on a specific model need separate validation. Software tests do not establish scientific results.
 
 ## State and reproducibility
 
-`STUDIO_HOME` sets the writable data root. Source checkouts default to the repository directory; wheel installs default to the operating system's user data directory. `STUDIO_CONFIG` selects a configuration file. Models remain in their configured caches or adapter directories.
+`STUDIO_HOME` sets writable storage. Source checkouts default to the repository; wheels use OS user-data storage. `STUDIO_CONFIG` selects the configuration file.
 
-Direction banks are keyed by model files and numerical runtime. CPU, CUDA BF16, and CUDA NF4 have separate identities. Run records contain the prompt, sampler, controls, layers, token trace, and intervention measurements.
+Direction banks are keyed by model contents and runtime. CPU, CUDA BF16 and CUDA NF4 have separate identities. Training manifests retain data/configuration hashes and checkpoints. Run records contain prompts and outputs; review them before sharing.
 
-`studio seal` records a reviewed source snapshot. `studio verify` checks it. After editing a sealed installation, rerun the tests and reseal before launching workers.
+`studio seal` records a reviewed source snapshot; `studio verify` detects changes. A local seal is not a publisher signature or a security sandbox.
 
 ## Documentation
 
-[Installation](docs/INSTALL.md) · [Workflow](docs/QUICKSTART.md) · [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/HELL_MODE.md) · [Release checks](docs/VALIDATION.md) · [Publishing](docs/PUBLISHING.md) · [Contributing](CONTRIBUTING.md)
+[Install](docs/INSTALL.md) · [Quickstart](docs/QUICKSTART.md) · [User guide](docs/USER_GUIDE.md) · [Data and permissions](docs/DATA_AND_PERMISSIONS.md) · [Hell lab](docs/HELL_MODE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) · [Readiness](docs/READINESS.md) · [Publishing](docs/PUBLISHING.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## License
 
-Studio source is MIT-licensed. Paper datasets retain the license in `paper/LICENSE`. Dependency, base-model, and dataset licenses are listed separately in [THIRD_PARTY.md](THIRD_PARTY.md).
+Studio source is MIT-licensed. Paper datasets retain [their own license](paper/LICENSE). Base-model, dependency and data rights are separate; see [third-party provenance](THIRD_PARTY.md).
