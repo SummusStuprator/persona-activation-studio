@@ -2,7 +2,8 @@
 from pathlib import Path
 import base64,hashlib,io,json,time
 import requests
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 HOST='http://127.0.0.1:11434'
 
 def request(path,body=None,timeout=15):

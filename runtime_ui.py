@@ -17,7 +17,7 @@ def render(engine):
             st.caption('Model switching, unloading and other experiments are paused until generation finishes or is stopped. Live chat controls remain available.')
         return bool(engine.handle)
     with st.sidebar:
-        st.caption('Cooperative mode: one workshop model at a time, adaptive Auto GPU offload from currently free VRAM, and near-full use of genuinely free RAM with a small OS safety margin. Persona adapters remain CPU-only.')
+        st.caption('Cooperative mode: one workshop model at a time, adaptive Auto GPU offload from currently free VRAM, and a 10% host-RAM reserve. Persona adapters support Auto, CUDA, and CPU.')
         source=st.selectbox('Model source',['Choose a source','Ollama GGUF','Persona adapters'],key='model_source')
         if source=='Choose a source':
             st.info('Choose the existing GGUF store or the persona adapter folder to begin. No model is loaded automatically.')
@@ -58,7 +58,7 @@ def render(engine):
             manual = st.slider('GPU layers (0 = CPU)', 0, model.get('logical_layers',model['layers'])+1, min(model.get('logical_layers',model['layers']), 12))
         from workshop_v2.resource_policy import settings as resource_settings
         cfg=resource_settings()
-        effective_mode=('CPU' if mode=='CPU' else ('Auto' if cfg['cooperative'] else mode))
+        effective_mode=mode  # Explicit manual offload still obeys RAM admission and the shared lease.
         plan = plan_load(model, context, effective_mode, manual)
         st.caption(f"{model['family']} · {model['layers']} blocks · {model['size_gb']:.2f} GB on disk")
         st.caption(f"Proposed offload: {plan['gpu_layers']} layers · {plan['hardware']['gpu_free_gib']:.1f} GiB GPU free · {plan['hardware']['ram_available_gib']:.1f} GiB RAM free")

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import os, sys, tomllib
 
-REPO_ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = REPO_ROOT / "studio.toml"
+from studio_paths import CODE_ROOT as REPO_ROOT, ASSET_ROOT, data_root, config_path
+CONFIG_PATH = config_path()
 
 @dataclass(frozen=True)
 class StudioPaths:
@@ -25,10 +25,11 @@ def _resolve(base: Path, value: str | Path) -> Path:
 
 def load_config() -> dict:
     data={}
-    if CONFIG_PATH.exists():
-        with CONFIG_PATH.open("rb") as f:data=tomllib.load(f)
+    path = config_path()
+    if path.exists():
+        with path.open("rb") as f:data=tomllib.load(f)
     raw=data.get("paths",{})
-    workspace=_resolve(REPO_ROOT,os.environ.get("STUDIO_HOME") or raw.get("workspace","workspace"))
+    workspace=_resolve(data_root(),raw.get("workspace","workspace"))
     project=_resolve(workspace,raw.get("project","persona-project"))
     return {
         "paths":{

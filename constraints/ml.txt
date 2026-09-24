@@ -1,0 +1,7 @@
+# Tested ML packages; torch CUDA build installed separately.
+torch==2.11.0
+transformers==4.57.1
+peft==0.19.1
+accelerate==1.14.0
+safetensors==0.8.0
+bitsandbytes==0.50.0

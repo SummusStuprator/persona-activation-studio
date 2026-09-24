@@ -7,9 +7,8 @@ from pathlib import Path
 import hashlib, json, time, uuid
 import numpy as np
 from .resource_policy import checkpoint
-ROOT=Path(__file__).resolve().parent.parent
-
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def atomic_json(path, value):
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     temp=path.with_name(path.name+'.'+uuid.uuid4().hex+'.tmp')

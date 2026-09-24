@@ -9,7 +9,8 @@ from .reasoning import format_chat
 from .steering_controls import validate,matched_random_controls
 from .resource_policy import checkpoint
 from .universal_training import atomic_json
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 LEXICONS={
  'warmth':(['happy','joy','delighted','wonderful','excited','lovely'],['sad','dull','unhappy','disappointed','boring','cold']),
  'calmness':(['calm','relaxed','peaceful','patient','steady','gentle'],['frantic','panic','anxious','worried','rushed','nervous']),

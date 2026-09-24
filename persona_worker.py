@@ -3,7 +3,6 @@ import os,sys
 from multiprocessing.connection import Listener
 for key in ('HF_HUB_OFFLINE','TRANSFORMERS_OFFLINE','HF_DATASETS_OFFLINE','HF_HUB_DISABLE_TELEMETRY'):
     os.environ[key]='1'
-os.environ['CUDA_VISIBLE_DEVICES']=''
 os.environ['TOKENIZERS_PARALLELISM']='false'
 from workshop_v2.resource_policy import configure_process
 configure_process()
@@ -29,6 +28,7 @@ def main():
                         import torch
                         torch.set_num_threads(int(os.environ.get('WORKSHOP_CPU_THREADS','2')))
                     state={k:getattr(engine,k,None) for k in ('model','dim','layers','vocab_size','context','cuda_available','abi')}
+                    if method != 'open': state = {}
                     state['loaded']=bool(engine.handle)
                     conn.send({'ok':True,'value':value,'state':state})
                 except Exception as exc:

@@ -30,15 +30,17 @@ def render(engine):
     if model['architecture']!='qwen3':st.warning('Architecture loader is experimental here; this release was tested on Qwen3 persona adapters.')
     st.caption(f"{model['base_reference']} / {model['layers']} blocks x {model['dim']} dimensions / {model['adapter_bytes']/1e6:.1f} MB adapter")
     st.caption('Source-format safetensors + LoRA, not GGUF. Uses the existing shared cached base. No download, conversion, merging or weight update.')
-    st.selectbox('Persona memory mode',['CPU / BF16 weights / FP32 linear accumulation'])
+    mode=st.selectbox('Persona device',['Auto','CUDA','CPU'],key='persona_device')
+    precision=st.selectbox('Weight precision',['auto','bf16','nf4'],format_func=lambda p:{'auto':'Auto','bf16':'BF16','nf4':'4-bit NF4'}[p],key='persona_precision',disabled=mode=='CPU')
+    if mode=='CPU':precision='bf16'
     contexts=[n for n in (512,1024,2048,4096,8192) if n<=model['max_context']]
     if st.session_state.get('persona_context') not in contexts:st.session_state.pop('persona_context',None)
     context=st.selectbox('Persona context tokens',contexts,index=min(2,len(contexts)-1),key='persona_context')
-    st.caption('CPU mode does not consume the GPU used by training. The selected base still needs enough RAM; large contexts and large bases can be slow.')
+    st.caption('Auto selects CUDA BF16, then CUDA NF4, then CPU according to available memory. CUDA requires a GPU-capable persona Python; NF4 also requires bitsandbytes.')
     if st.button('Load persona model',type='primary'):
         try:
             with st.spinner('Checking source hashes, loading the existing base + adapter and verifying decoder hooks...'):
-                engine.open(model,context=context,mode='CPU')
+                engine.open(model,context=context,mode=mode,precision=precision)
             st.success('Persona adapter and activation hooks ready.')
         except Exception as exc:st.error(str(exc))
     if st.button('Unload model / free memory'):

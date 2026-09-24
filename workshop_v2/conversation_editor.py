@@ -1,8 +1,8 @@
 """Explicit history branching; editing never rewrites a saved model generation."""
 import copy,json,time,uuid
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def branch(messages,index,text,keep_images=True):
     if not 0<=index<len(messages):raise ValueError('Message no longer exists.')
     if not isinstance(text,str) or not text.strip():raise ValueError('Edited content must not be empty.')

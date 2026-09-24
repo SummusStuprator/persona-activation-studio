@@ -1,0 +1,93 @@
+name: Release checks
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  package:
+    name: Package (${{ matrix.os }}, Python ${{ matrix.python }})
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12', '3.13']
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Configure isolated state
+        shell: bash
+        run: echo "STUDIO_HOME=$RUNNER_TEMP/studio-state" >> "$GITHUB_ENV"
+      - run: python -m pip install build
+      - run: python -m build
+      - run: python scripts/verify_release.py --write
+      - run: python -c "import glob,subprocess,sys; subprocess.check_call([sys.executable,'-m','pip','install',*glob.glob('dist/*.whl')])"
+      - run: python -m pip check
+      - run: studio init
+        working-directory: ${{ runner.temp }}
+      - run: studio check
+        working-directory: ${{ runner.temp }}
+      - run: studio demo
+        working-directory: ${{ runner.temp }}
+      - run: studio seal
+        working-directory: ${{ runner.temp }}
+      - run: studio verify
+        working-directory: ${{ runner.temp }}
+      - name: Retain tested distributions
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-assets-${{ github.sha }}
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
+            dist/release.json
+          if-no-files-found: error
+          retention-days: 14
+  native-cpu:
+    name: Native CPU (Linux)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Configure isolated state
+        run: echo "STUDIO_HOME=$RUNNER_TEMP/studio-native" >> "$GITHUB_ENV"
+      - run: python -m pip install build "cmake>=3.24"
+      - run: python -m build --wheel
+      - run: python -c "import glob,subprocess,sys; subprocess.check_call([sys.executable,'-m','pip','install',*glob.glob('dist/*.whl')])"
+      - run: studio native --jobs 2
+        working-directory: ${{ runner.temp }}
+      - run: studio doctor --require core --require native
+        working-directory: ${{ runner.temp }}
+  release-gate:
+    name: Release gate
+    needs: [package, native-cpu]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all jobs
+        env:
+          PACKAGE: ${{ needs.package.result }}
+          NATIVE: ${{ needs.native-cpu.result }}
+        run: test "$PACKAGE" = success && test "$NATIVE" = success

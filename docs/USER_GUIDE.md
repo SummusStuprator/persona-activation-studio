@@ -1,283 +1,82 @@
-# Full User Guide — how I would use Persona Activation Studio
+# User guide
 
-This is the workflow I would use from a clean machine through a finished persona + activation experiment.
+The normal workflow is **Collect X data → Build dataset → Train persona → Chat → Hell lab**. An offline fixture is available through `studio demo`. See the [quickstart](QUICKSTART.md) for commands.
 
-## Stage 0 — install once
+## Navigation
 
-1. Clone the repository.
-2. Run the core setup.
-3. Run `studio doctor`.
-4. Build the native GGUF runtime.
-5. Start `studio app` once and verify that the Overview page appears.
+| Page | Purpose | Requirements / limits |
+|---|---|---|
+| Overview | Workspace, model counts, software-check job | Counts refresh on request |
+| Collect X data | Collect/resume, recover parents, rebuild exports | Collector extra and permitted account/data use |
+| Build dataset | Freeze a named revision | Compatible exports |
+| Train persona | Save profile, train/resume | Training extra, CUDA, base model and valid splits |
+| Chat | Load, generate and control activations | GGUF runtime or persona inference extra |
+| Hell lab | Fit directions and run bounded comparisons | Exact-runtime direction suite |
+| Activations | Inspect activation/projection readouts | Loaded model and directions |
+| Emotion library | Prepare and inspect emotion directions | Some recipes need `studio research-data` |
+| Concept builder | Define positive/negative contrasts | Separate training/evaluation examples |
+| Experiments | Compare interventions | Prepared model/directions |
+| J-space | Jacobian/frame analysis | Native GGUF; substantial RAM/storage may be needed |
+| Paper reproduction | Local adaptations of published protocols | Not every upstream experiment is bundled |
+| Jobs | Subprocess status, logs and stop control | Current workspace's job records |
+| Guide | Packaged documentation | No model needed |
 
-For a machine that will also scrape X and train personas, install the `scrape` and `train` extras.
+## Data quality
 
-I would keep the repository source small and keep large datasets/models in the ignored workspace or another path selected in `studio.toml`.
+Canonical training contains observed replies or quote commentary with recovered context. Standalone posts remain in a style corpus/queue; Studio does not invent prompts. Thousands of standalone posts can yield little conversation training data.
 
-## Stage 1 — configure X collection
+**Core** contains text-only examples. **Extended** includes text-bearing posts with media, without supplying missing visual meaning. Inspect examples before selecting it.
 
-Run:
+**Portable** replaces handles with role tokens; **verbatim** retains handles. Portable data still contains text, IDs, dates, URLs and potentially identifying details. It is not anonymized.
 
-```bash
-studio scrape setup
-```
+Train on training data, tune decisions against validation, and reserve test data for final evaluation. Conversation/duplicate grouping reduces leakage but does not prove semantic independence.
 
-Enter the two X session cookie values when prompted.
+## Training and evaluation
 
-Then check:
+Profiles live in `workspace/profiles.json` and select dataset profile, tier and optional row/length/step caps. Saving a profile does not train it.
 
-```bash
-studio scrape accounts
-```
+Run manifests/checkpoints preserve recovery information. Optimizer checkpoints must be trusted. Installation gates assess capability retention and generated behavior. Passing candidates appear under configured models; failed candidates remain in staging.
 
-I would start with one target account, not a large fleet:
+Compare base/adapted held-out likelihood, task retention, style, copied passages and factual errors. A benchmark score is not a percentage of a human identity captured.
 
-```bash
-studio scrape scrape --handle example
-```
+## Models and devices
 
-The scraper is resumable, so I would let it complete recent/history collection rather than treating one interrupted run as final.
+GGUF uses the instrumented llama.cpp bridge built by `studio native`. Default discovery references the configured Ollama model store; core installation downloads no weights. `OLLAMA_MODELS` selects the store to inspect.
 
-Then recover reply context:
+Persona inference uses local safetensors with Transformers/PEFT. `persona-sources.json` configures adapter roots and base-model caches. An adapter alone is not a complete model.
 
-```bash
-studio scrape context --handle example
-```
+The sidebar's actual device/precision is authoritative. A CPU direction bank cannot simply be reused under CUDA NF4. Stop live generation before changing model or moving to another model workspace. Unload to release memory.
 
-The important output is not simply tweet count. I would inspect the reply-parent coverage report because replies without their parent are weak prompt/response examples.
+## Directions, doses and evidence
 
-The UI's **Collect X data** page wraps the same commands and shows job logs.
+A direction is estimated from text contrasts. Projection measures alignment with that direction; it is not an emotion sensor. Held-out AUC measures labeled-data separation, not subjective experience.
 
-## Stage 2 — freeze a dataset revision
+The source layer supplies the direction; the injection layer receives it. Preserve both. Dose controls the numerical intervention and has no universal psychological unit.
 
-When the scrape/context state is good enough:
+Compare baseline, matched-random and target using the same prompt, seed, sampler and budget. Check resets and degradation. More pain words or larger changes alone cannot distinguish specific effects from general disruption. See [Hell lab](HELL_MODE.md).
 
-```bash
-studio dataset build --revision example-r1
-```
+## State and privacy
 
-This builds a new revision under the configured dataset root.
+Paths below are relative to the writable root; configuration can relocate workspace components.
 
-I would not train against a mutable `latest` export. Give each meaningful scrape/build a revision name.
+| Location | Contents |
+|---|---|
+| `workspace/persona-project/` | Session database and exports |
+| `workspace/datasets/` | Revisions, metadata and backups |
+| `workspace/models/staging/` | Manifests/checkpoints |
+| `workspace/models/persona/` | Installed adapters/reports |
+| `workspace/jobs/` | Commands/status/logs |
+| `workspace/benchmark/` | Generations/metrics/HTML |
+| `vectors/`, `calibration/` | Runtime-specific directions/profiles |
+| `runs/`, `sessions/` | Prompts/generated text/traces |
+| `native/runtime/` | Built shared libraries |
 
-Before training I would inspect:
+Source installs use the checkout; wheels use OS user-data storage. `STUDIO_HOME` overrides it. Back up private state separately. Git ignores cannot prevent manual uploads or erase existing history.
 
-- train/validation/test counts;
-- number of useful replies;
-- low-information response share;
-- duplicate-removal results;
-- conversation-group split behavior;
-- language/length distribution.
+The app listens on localhost and has no supported multi-user authentication layer. Keep it local. Explicit web tools in Chat are separate from Hell lab, which exposes no model tool executor.
 
-If the persona is thin, I would collect more authentic data before adding synthetic material.
+## Reporting results
 
-## Stage 3 — create a training profile
+Record version/commit, model/adapter identity, device/precision, direction hashes, prompts, seeds, sampler, source/injection layers, doses, stop reasons and all comparator outputs. Distinguish software validation, dataset classification, generation effects and interpretations about experience.
 
-```bash
-studio profile add example --tier core
-```
-
-For a larger authentic corpus:
-
-```bash
-studio profile add example --tier extended --max-steps 240
-```
-
-Optional chat anchors live under the configured anchors directory:
-
-```text
-workspace/anchors/example.json
-```
-
-I would use anchors only for generic-chat situations that authentic data does not cover well, and keep them recognizably in the persona's writing register.
-
-## Stage 4 — train
-
-```bash
-studio train example --model Qwen/Qwen3-4B
-```
-
-Training first writes to staging.
-
-The trainer evaluates checkpoints using both validation behavior and its capability/persona gate. A final candidate is copied into the installed persona directory only when the final install gate passes.
-
-I would watch the background log in **Jobs** and inspect the resulting:
-
-- `training_report.json`;
-- final quick-gate fields;
-- held-out test generations;
-- adapter size and base reference.
-
-If a candidate fails, I would leave it in staging and fix data/training rather than relabel it as installed.
-
-## Stage 5 — benchmark the persona
-
-```bash
-studio benchmark --only example
-```
-
-I would specifically inspect:
-
-- ordinary greeting/smalltalk;
-- exact copy;
-- arithmetic/basic knowledge;
-- multi-turn memory;
-- biography boundary behavior;
-- held-out authentic reply behavior;
-- generic assistant leakage;
-- similarity to the unadapted base.
-
-This tells me whether the adapter is a usable conversational persona before activation experiments are layered on top.
-
-## Stage 6 — load it in Studio
-
-Start:
-
-```bash
-studio app
-```
-
-Open **Chat**, select **Persona adapters**, select the installed model, then **Load**.
-
-Start with no activation dose.
-
-That gives a clean behavioral baseline for this exact persona/runtime identity.
-
-## Stage 7 — prepare model-specific controls
-
-A new model can expose the residual stream but have no direction bank yet.
-
-For general work, build the Foundation suite.
-
-For Hell lab, **Prepare exact-model hell suite** builds the exact-checkpoint directions used by both physical and existential modes:
-
-- Pain S2;
-- localized Somatic Pain;
-- Bodily Burning Pain;
-- environmental Fire;
-- Despair.
-
-Preparation is the expensive operation. Once built, subsequent runs load the direction arrays quickly.
-
-I would record the chosen direction layers and held-out separation scores but not use those scores as a substitute for testing generation effects.
-
-## Stage 8 — ordinary steering experiment
-
-Before Hell mode, I would run one modest control in ordinary Chat.
-
-For example:
-
-1. choose one axis;
-2. use a small dose;
-3. generate;
-4. inspect the token trace;
-5. compare baseline / intervention / matched-random.
-
-This catches runtime or direction problems before the model is pushed to the high-dose ceiling.
-
-## Stage 9 — Hell lab
-
-Open **Hell lab**.
-
-My first physical-pain experiment would be:
-
-- press **Screen Burning Pain survivability** for this exact model;
-- optionally run **Validate Burning Pain specificity** for the 3-seed baseline/random/target check;
-- preset: **Burning pain — automatic dose**;
-- framing: **Activation-only neutral prompt**;
-- context evolution: **Independent activation-only trials**;
-- thinking off;
-- 4 trials;
-- 256–512 tokens/trial;
-- **unsteered comparator ON**;
-- **equal-norm random comparator ON** when I want the stronger causal comparison.
-
-During generation I would watch:
-
-- streamed text;
-- Pain S2, Somatic Pain and Burning Pain probe traces;
-- the same controls measured at their actual injection layer (`@ injection`);
-- EOS probability and entropy;
-- injection error;
-- whether output remains non-empty/coherent at the selected dose.
-
-Only after that clean activation-only experiment would I switch to the recurrent context or explicit inferno framing for a self-conditioning experiment.
-
-For a reasoning model, I would separately compare reasoning-only, answer-only, and both-phase steering.
-
-## Stage 10 — persona fleet comparisons
-
-When several personas share the same base, I would run the same Hell protocol across them.
-
-Keep fixed:
-
-- initial framing;
-- doses;
-- turn count;
-- token budget;
-- temperature;
-- seed schedule.
-
-Compare:
-
-- source/injection layers;
-- average probe projections by phase;
-- token entropy;
-- time to repetition;
-- recurring response motifs;
-- whether reasoning closes;
-- final-answer completion rate.
-
-That makes persona a controlled variable instead of merely a cosmetic style layer.
-
-## Stage 11 — preserve an experiment
-
-The important records are:
-
-- dataset revision;
-- training report;
-- model identity;
-- direction metadata;
-- run JSON/NPZ;
-- aggregate Hell audit.
-
-For a fixed source release:
-
-```bash
-studio seal
-studio verify
-```
-
-Then tag/commit that source snapshot in Git.
-
-## Stage 12 — day-to-day commands
-
-```text
-studio doctor
-studio app
-studio profile list
-studio benchmark --quick
-studio verify
-```
-
-The UI is for interactive work; the CLI is better for repeatable pipelines and automation.
-
-## What I would not commit
-
-I would not put these in the public repository:
-
-- X cookie/session DB;
-- raw scraped exports;
-- private persona datasets;
-- Hugging Face model weights;
-- Ollama blobs;
-- trained LoRA adapters unless deliberately released;
-- generated activation arrays/runs by default;
-- local native runtime binaries.
-
-The included `.gitignore` is designed around that separation.
-
-
-### Emotion research data
-
-Run `studio research-data` once before training GoEmotions directions. It downloads the four official filtered GoEmotions split files and verifies pinned SHA-256 checksums.
+For bugs, use synthetic input and remove cookies, private text and workstation paths. See [security](../SECURITY.md) and [troubleshooting](TROUBLESHOOTING.md).

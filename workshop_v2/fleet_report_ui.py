@@ -3,8 +3,8 @@ from pathlib import Path
 import json
 import streamlit as st
 import pandas as pd
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def render():
     st.subheader('Fleet verification reports')
     st.caption('Tested, failed, and resource-deferred are separate outcomes. Generation and tensor checks do not certify emotional or conceptual specificity.')

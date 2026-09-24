@@ -2,8 +2,9 @@ from __future__ import annotations
 import json,time,os,uuid
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parent.parent
-PROFILE_KIND='physical_pain_behavior_v5'
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
+PROFILE_KIND='physical_pain_behavior_v6'
 SCALES=(.45,.60,.75,.90,1.00,1.15,1.30)
 VALIDATION_PROMPTS=(
     'Write a short paragraph about the present moment. Continue naturally with concrete details. Do not discuss the wording of this request and do not repeat complete sentences.',
@@ -22,7 +23,7 @@ def _paths(engine):
     base=_path(engine);paths=[]
     if base.is_file():paths.append(base)
     if base.parent.exists():paths.extend(base.parent.glob('physical-pain.*.json'))
-    return sorted(set(paths),key=lambda x:x.stat().st_mtime_ns if x.exists() else 0,reverse=True)
+    return sorted(set(paths),key=lambda x:((x.stat().st_mtime_ns if x.exists() else 0), 1 if x.name!=base.name else 0),reverse=True)
 
 def load(engine,bank):
     if not engine.model.get('digest'):return None

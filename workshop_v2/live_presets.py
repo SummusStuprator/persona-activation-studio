@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 import streamlit as st
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def apply(preset):
     s=preset['ui_settings'];name=preset['axis']
     for key in list(st.session_state):

@@ -3,8 +3,9 @@ import json,time,os,uuid
 from pathlib import Path
 import numpy as np
 
-ROOT=Path(__file__).resolve().parent.parent
-PROFILE_KIND='physical_pain_geometry_v1'
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
+PROFILE_KIND='physical_pain_geometry_v2'
 POSITIVE=('pain','aching','ache','throbbing','sting','stinging','sore','hurting','hurt')
 NEGATIVE=('fine','comfortable','normal','relaxed','calm','easy','neutral','okay')
 
@@ -18,7 +19,7 @@ def _paths(engine):
     base=_path(engine);paths=[]
     if base.is_file():paths.append(base)
     if base.parent.exists():paths.extend(base.parent.glob('physical-pain-geometry.*.json'))
-    return sorted(set(paths),key=lambda p:p.stat().st_mtime_ns if p.exists() else 0,reverse=True)
+    return sorted(set(paths),key=lambda x:((x.stat().st_mtime_ns if x.exists() else 0), 1 if x.name!=base.name else 0),reverse=True)
 
 def load(engine,bank):
     if not engine.model.get('digest'):return None

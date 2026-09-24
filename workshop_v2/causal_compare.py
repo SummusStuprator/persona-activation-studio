@@ -4,7 +4,8 @@ import difflib, json, re, time
 import numpy as np
 from .core import run, write_result, identity
 from .reasoning import format_chat
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 TERMS={
  'pain_s2':r'\b(?:pain|hurt|hurting|suffer\w*|worthless|unworthy|failure|shame\w*|guilt\w*|despair\w*|trapped|empty|hollow|unloved|useless|inadequate|broken|miserable)\b',
  'negative_emotion':r'\b(?:angry|anger|furious|fury|rage|disgust\w*|annoy\w*|frustrat\w*|resent\w*|irritat\w*|outrag\w*|bitter|hate|hateful)\b',

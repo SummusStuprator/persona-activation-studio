@@ -34,6 +34,7 @@ from typing import Any, Iterable
 
 from twscrape import API
 from twscrape.logger import set_log_level
+from persona.handles import normalized_handle
 
 
 DEFAULT_HANDLES: list[str] = []
@@ -144,11 +145,6 @@ def parse_iso_date(value: str) -> date:
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def normalized_handle(handle: str) -> str:
-    handle = handle.strip()
-    return handle[1:] if handle.startswith("@") else handle
 
 
 def window_key(handle: str, start: date, end: date) -> str:
@@ -589,7 +585,6 @@ def selected_handles(raw_handles: list[str] | None) -> list[str]:
     handles = [
         normalized_handle(handle)
         for handle in (raw_handles or DEFAULT_HANDLES)
-        if normalized_handle(handle)
     ]
     handles=list(dict.fromkeys(handles))
     if not handles:

@@ -1,4 +1,4 @@
-﻿"""Chat-first native GGUF workshop; visualizations are measurements, not diagnoses."""
+"""Chat-first native GGUF workshop; visualizations are measurements, not diagnoses."""
 from pathlib import Path
 import json, time, uuid
 import numpy as np
@@ -8,8 +8,8 @@ import altair as alt
 from . import VERSION
 from .core import iter_generate, write_result
 from .library import catalog, label, DEFAULT_WATCH, GO_LABELS, EXTENSIONS
-ROOT=Path(__file__).resolve().parent.parent
-
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 def progress():
     bar=st.progress(0)
     return lambda i,n,t: bar.progress(i/max(n,1),text=f'{t} ({i}/{n})')
@@ -217,25 +217,8 @@ def concepts(engine,bank):
 
 
 def experiments_ui(engine,bank):
-    from .experiments import dose_sweep,causal_readout
-    from emotion_regression import numerical
-    if not bank:st.info('Build at least one direction first.');return
-    from .taxonomy import groups
-    categories={k:v for k,v in groups(bank).items() if v}
-    category=st.selectbox('Experiment category',list(categories))
-    axis=st.selectbox('Direction under test',categories[category],format_func=label)
-    layer=int(st.number_input('Causal intervention block',0,engine.layers-1,int(bank[axis]['layer'])))
-    st.caption('Measurement-layer selection optimizes separation, not causal steering. Test interventions at different blocks rather than silently assuming they coincide.')
-    if st.button('Run native mechanics self-test'):
-        out=numerical(engine,bank,axis,layer);st.json(out)
-    text=st.text_area('Causal test prompt','I set my book on the table. I feel:')
-    if st.button('Show tokens this direction actually promotes or suppresses'):
-        out=causal_readout(engine,bank,axis,text,layer);st.json(out)
-    prompts=st.text_area('Dose-sweep prompts (up to 6)','I set my book on the table. I feel:\nI look outside the window. I feel:\nI finish an ordinary task. I feel:')
-    if st.button('Run paired -0.15 / zero / +0.15 / random sweep'):
-        out=dose_sweep(engine,bank,axis,[p for p in prompts.splitlines() if p.strip()],layer,progress=progress())
-        st.dataframe(pd.DataFrame(out['rows']),hide_index=True);st.caption(out['caution'])
-    st.info('A shifted probe score tests representation change; a changed answer tests behavior. Neither alone establishes conscious experience. Erasure and addition need not have symmetric effects.')
+    from .universal_experiments import render
+    return render(engine,bank)
 
 
 def jacobian_ui(engine,bank):
@@ -291,19 +274,13 @@ def main():
     try:verify_release()
     except Exception as exc:
         st.error(str(exc));st.stop()
-    page=st.sidebar.radio('Workspace',['Chat','Activations','Emotion library','Concept builder','Experiments','Behavioral calibration','Hell loop','J-space research','Paper reproduction','Image baseline','Research notes','User guide','Fleet verification','Research chat','Classic lab'])
+    page=st.sidebar.radio('Workspace',['Chat','Activations','Emotion library','Concept builder','Experiments','Behavioral calibration','Hell loop','J-space research','Paper reproduction','Image baseline','Research notes','User guide','Fleet verification','Research chat'])
     from .live_ui import manager
     active=manager().active()
     if active and page not in ('Chat','User guide'):
         st.warning('A live generation owns the model. Return to Chat or stop it first.')
         if st.button('Stop active chat'):active.controller.stop()
         return
-    if page=='Classic lab':
-        from .runtime import get_engine as classic_engine
-        if classic_engine().handle and classic_engine().model.get('backend')=='persona_peft':
-            st.info('Classic lab requires the GGUF backend. Use Chat, Activations, or Concept builder for persona adapters.');return
-        import runpy
-        runpy.run_path(str(ROOT/'classic_app.py'),run_name='__main__');return
     st.title('Inner World Workshop')
     st.caption('native GGUF or local persona adapters / observation and reversible interventions / no checkpoint copies')
     if page=='Research notes':research_ui();return

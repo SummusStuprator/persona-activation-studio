@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "Cite this software using the metadata below."
+title: "Persona Activation Studio"
+type: software
+authors:
+  - name: "Persona Activation Studio contributors"
+version: "0.3.4"
+repository-code: "https://github.com/SummusStuprator/persona-activation-studio"
+license: MIT

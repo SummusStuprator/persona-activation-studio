@@ -9,11 +9,13 @@ import re
 import subprocess
 import psutil
 from gguf_header import read_header
-ROOT = Path(__file__).resolve().parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 GIB = 1024 ** 3
 
 def store_roots() -> list[Path]:
-    candidates = [os.environ.get('OLLAMA_MODELS'), str(Path.home()/'.ollama/models')]
+    # An explicit store is an override, including for isolated validation runs.
+    candidates = [os.environ.get('OLLAMA_MODELS') or str(Path.home()/'.ollama/models')]
     settings = ROOT / 'lab-settings.json'
     if settings.exists():
         candidates += json.loads(settings.read_text(encoding='utf-8')).get('model_directories', [])

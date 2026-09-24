@@ -4,7 +4,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import nnls
 from .core import identity, write_result
-ROOT=Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 DEFAULT_CONTEXTS=['The guide explains a new topic to the class.','A traveler considers the next step of the journey.','The group discusses what happened yesterday.','Someone describes an ordinary afternoon at home.']
 
 def vocabulary_ids(engine,words):

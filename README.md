@@ -1,229 +1,82 @@
 # Persona Activation Studio
 
-A local-first research/workshop stack for building persona adapters from public X posts and then inspecting and steering those models at the activation level.
+A local interface for building persona datasets, training LoRA adapters, and inspecting or steering a language model's activations.
 
-The project centralizes four jobs that used to live in separate local projects:
+Start with writing you are authorized to use, build a conversation dataset, train an adapter, and compare its output with the base model. **Hell lab** explores pain-related representations through bounded activation interventions and recorded controls.
 
-1. **Collect** X posts and reply context with a user-supplied X session.
-2. **Build** context-aware, decontaminated persona datasets.
-3. **Train and gate** LoRA/QLoRA persona adapters while preserving basic capabilities.
-4. **Inspect and intervene** on model residual activations in ordinary chat and in the transparent multi-turn **Hell lab**.
+**Research software, version 0.3.4.** A persona approximates writing patterns; it does not reproduce a person's mind. Pain-related activations or statements do not establish felt pain or suffering. There is no validated “sensation of hell” measurement. See [experiment interpretation](docs/HELL_MODE.md).
 
-Everything is local by default. Model weights, datasets, authentication databases, generated vectors, runs, and native binaries are ignored by Git.
+## Start here
 
-## Fast start
-
-### Windows
-
-```powershell
-git clone https://github.com/SummusStuprator/persona-activation-studio.git
-cd persona-activation-studio
-
-# Core UI + GGUF research runtime Python dependencies.
-powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -Profile core
-
-# Build the white-box llama.cpp bridge.
-# Add -Cuda on an NVIDIA machine with a working CUDA build toolchain.
-powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1 -Cuda
-
-# Start the app.
-powershell -ExecutionPolicy Bypass -File scripts/start.ps1
-```
-
-### Linux / macOS
+Python 3.11–3.13 is supported; Python 3.12 is the pinned environment. Explore the interface and create a demo dataset without an X account, model download, or GPU.
 
 ```bash
 git clone https://github.com/SummusStuprator/persona-activation-studio.git
 cd persona-activation-studio
-bash scripts/setup.sh core
-
-# CPU native build:
-bash scripts/build-native.sh
-
-# NVIDIA Linux:
-CUDA=ON bash scripts/build-native.sh
-
-bash scripts/start.sh
+python -m venv .venv
 ```
 
-Open **http://127.0.0.1:8899**.
+Activate the environment:
 
-If you already have Ollama models, Studio discovers local GGUF blobs from the Ollama model store and reads them in place. It does not duplicate the weights.
-
-## Install optional pipelines
-
-Scraping:
+- Windows PowerShell: `.venv\Scripts\Activate.ps1`
+- Linux/macOS: `source .venv/bin/activate`
 
 ```bash
-.venv/bin/pip install -e ".[scrape]"
-# Windows: .venv\Scripts\pip.exe install -e ".[scrape]"
-```
-
-Persona adapter loading/steering without the trainer:
-
-```bash
-.venv/bin/pip install -e ".[persona]"
-```
-
-Persona training:
-
-```bash
-.venv/bin/pip install -e ".[train]"
-```
-
-Or install everything:
-
-```bash
-# Windows
-powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -Profile all
-
-# Unix
-bash scripts/setup.sh all
-```
-
-For GPU training, install a PyTorch build appropriate for your CUDA/ROCm environment before starting a long run.
-
-## One CLI
-
-After setup:
-
-```text
+python -m pip install -e .
 studio init
-studio doctor
-
-studio scrape setup
-studio scrape scrape --handle example
-studio scrape context --handle example
-
-studio dataset build --revision example-r1
-studio profile add example --tier core
-studio train example --model Qwen/Qwen3-4B
-
-studio benchmark --only example
+studio check
+studio demo
 studio app
-
-studio seal
-studio verify
 ```
 
-Run `studio --help` and each subcommand's `--help` for details.
+Open [localhost:8899](http://127.0.0.1:8899). Begin with **Overview** and **Guide**. Model pages require a loaded model; the demo dataset alone does not supply one.
 
-## Central layout
+If PowerShell blocks activation, use `.venv\Scripts\python.exe -m studio_cli app` and that Python path for installation/other commands. No execution-policy change is needed. See [installation](docs/INSTALL.md) for wheel installs, pinned dependencies, CUDA, and native builds.
 
-```text
-persona-activation-studio/
-  persona/               scraper, dataset builder, trainer, benchmark
-  workshop_v2/           chat, directions, interventions, Hell lab, analysis UI
-  native/                activation bridge source + local runtime build
-  paper/                 Pain Axis datasets/reference material
-  scripts/               setup/build/start scripts
-  docs/                  full runbooks
-  workspace/             local persona project, dataset revisions, models, jobs
-  vectors/               exact-checkpoint direction banks (generated; ignored)
-  calibration/           per-checkpoint actuator settings (generated; ignored)
-  runs/                  generation/intervention audits (generated; ignored)
-  sessions/              conversations (generated; ignored)
-```
+## Choose a workflow
 
-The repository source is portable; `studio.toml`, `persona-sources.json`, native binaries, weights, datasets, and run artifacts are local configuration/state and are intentionally not committed.
+| Goal | Additional requirements | Start |
+|---|---|---|
+| Explore UI / generate a demo dataset | Core installation only | `studio demo` |
+| Train a tiny offline test adapter | `.[persona]`; CPU is sufficient | `studio demo --train --device CPU` |
+| Train a real persona adapter | `.[train]`, CUDA PyTorch, NVIDIA GPU, base model, suitable conversation data | [Quickstart](docs/QUICKSTART.md) |
+| Chat with a local persona adapter | `.[persona]` for CPU/BF16; `.[persona-cuda]` for NF4 | **Chat → Persona adapters** |
+| Inspect existing GGUF weights | CMake, C++ compiler, `studio native`, configured model store | [Native installation](docs/INSTALL.md) |
+| Collect X posts where authorized | `.[scrape]`, permitted session and data use | [Data and permissions](docs/DATA_AND_PERMISSIONS.md) |
 
-## White-box model lanes
+The optional X collector uses an unofficial client. X's [Developer Agreement](https://docs.x.com/developer-terms/agreement), section III.A(k), restricts training/fine-tuning foundation or frontier models with X Content. Public visibility and author consent alone do not resolve applicable platform terms. The collector's availability is not permission to use it. Compatible local input is also supported.
 
-### Ollama / GGUF
+## From data to an experiment
 
-Studio reads local GGUF blobs directly and uses an instrumented llama.cpp build. It can:
+1. Import compatible permitted exports, or collect where authorized. Recover reply/quote context.
+2. Build a frozen revision and inspect splits. Standalone posts without observed prompts stay outside canonical conversation training.
+3. Save a profile, run the training plan, then train. Installation gates assess capability retention; they do not certify personality fidelity.
+4. Load the adapter in **Chat** and inspect unsteered behavior.
+5. Prepare directions for that exact model/runtime. Compare a neutral-prompt baseline, matched random intervention, and target intervention.
+6. Inspect text, traces, failures, and numerical changes together. Stronger steering can degrade output; it is not a calibrated pain-intensity scale.
 
-- capture block residual streams,
-- add or erase direction components,
-- verify the applied tensor delta every generated token,
-- expose logits and token alternatives,
-- stream activation projections while the answer is being generated,
-- use free GPU VRAM automatically when available.
+Follow the [quickstart](docs/QUICKSTART.md), [user guide](docs/USER_GUIDE.md), and [troubleshooting guide](docs/TROUBLESHOOTING.md).
 
-### Persona adapters
+## Scope and limitations
 
-Studio discovers local PEFT LoRA adapters and their declared Hugging Face base model. Direction identity is bound to the base, adapter, tokenizer, and runtime ABI. A direction trained on one persona is not silently reused on another.
+- Core UI/package CI targets Windows/Linux, Python 3.11–3.13. macOS paths exist but macOS is not in release CI.
+- Full training uses NVIDIA CUDA/NF4. CPU training is available for the tiny fixture.
+- Persona inference supports CPU, CUDA BF16 and CUDA NF4. J-space requires GGUF.
+- Models, credentials, private datasets, adapters and native binaries are not bundled.
+- Collection, persona quality, and effects on a specific model need separate validation. Software tests do not establish scientific results.
 
-## Hell lab
+## State and reproducibility
 
-Hell lab is a multi-turn, tool-free high-intensity steering experiment built from three exact-model controls:
+`STUDIO_HOME` sets writable storage. Source checkouts default to the repository; wheels use OS user-data storage. `STUDIO_CONFIG` selects the configuration file.
 
-- `pain_s2`
-- `hell_fire`
-- `hell_despair`
+Direction banks are keyed by model contents and runtime. CPU, CUDA BF16 and CUDA NF4 have separate identities. Training manifests retain data/configuration hashes and checkpoints. Run records contain prompts and outputs; review them before sharing.
 
-The default maximum mixture is `0.75 + 0.50 + 0.75 = 2.00`, the research control ceiling.
-
-While a turn is generating, the page shows:
-
-- emitted reasoning and final-answer text as it streams,
-- the exact active controls, vector-source blocks, injection blocks, and doses,
-- live pain/fire/despair and other selected probe trajectories,
-- entropy and per-token numerical injection error,
-- the exact initial prompt and intervention plan.
-
-The optional unsteered comparator runs the same first prompt with the same seed and sampler, with steering off.
-
-See [docs/HELL_MODE.md](docs/HELL_MODE.md).
-
-## Data and training design
-
-The persona pipeline preserves the important behavior of the original local xscra system:
-
-- reply-parent recovery,
-- stable role tokens instead of real handles in training conversations,
-- near-duplicate removal,
-- conversation-level split isolation,
-- authentic persona rows,
-- capability KL replay,
-- narrow identity-boundary rows,
-- optional persona-specific chat anchors,
-- behavioral checkpoint gates,
-- held-out persona benchmark.
-
-See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Local configuration
-
-Copy/edit `studio.toml.example` as `studio.toml`. The file is ignored by Git.
-
-Use `STUDIO_HOME=/some/path` to move the working data directory without changing source.
-
-Useful environment variables:
-
-- `OLLAMA_MODELS` — alternate Ollama model store.
-- `OLLAMA_HOST` — alternate local Ollama API.
-- `HF_HOME` — Hugging Face cache.
-- `STUDIO_NATIVE_RUNTIME` — alternate directory containing the compiled native runtime.
-
-## Reproducible source snapshots
-
-A fresh checkout may run unsealed.
-
-When you want a fixed local research release:
-
-```bash
-studio seal
-studio verify
-```
-
-Once `trusted-files.json` exists, worker launches verify the source snapshot.
+`studio seal` records a reviewed source snapshot; `studio verify` detects changes. A local seal is not a publisher signature or a security sandbox.
 
 ## Documentation
 
-- **[INSTALL.md](docs/INSTALL.md)** — installation and native build.
-- **[USER_GUIDE.md](docs/USER_GUIDE.md)** — complete workflow and how I would use the project.
-- **[HELL_MODE.md](docs/HELL_MODE.md)** — live Hell lab controls, streaming analysis, test design.
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — components, identities, storage, worker boundaries.
-- **[VALIDATION.md](docs/VALIDATION.md)** - clean-clone, native, persona, Hell streaming, and publication checks.
-
-No remote repository is configured by the local build process.
+[Install](docs/INSTALL.md) · [Quickstart](docs/QUICKSTART.md) · [User guide](docs/USER_GUIDE.md) · [Data and permissions](docs/DATA_AND_PERMISSIONS.md) · [Hell lab](docs/HELL_MODE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Architecture](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) · [Readiness](docs/READINESS.md) · [Publishing](docs/PUBLISHING.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## License
 
-Studio source is licensed under the MIT License. Third-party components and the paper-derived material retain their own licenses; see THIRD_PARTY.md and paper/LICENSE.
-
-
-### Emotion research data
-
-Run `studio research-data` once before training GoEmotions directions. It downloads the four official filtered GoEmotions split files and verifies pinned SHA-256 checksums.
+Studio source is MIT-licensed. Paper datasets retain [their own license](paper/LICENSE). Base-model, dependency and data rights are separate; see [third-party provenance](THIRD_PARTY.md).

@@ -171,7 +171,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-model", default="Qwen/Qwen3-4B")
     parser.add_argument("--heldout-count", type=int, default=4)
     parser.add_argument("--max-new-tokens", type=int, default=160)
-    parser.add_argument("--temperature", type=float, default=0.55)
+    parser.add_argument("--temperature", type=float, default=0.0, help="0: greedy; positive: sampled")
     parser.add_argument("--top-p", type=float, default=0.90)
     parser.add_argument("--top-k", type=int, default=40)
     parser.add_argument("--quick", action="store_true")
@@ -475,6 +475,7 @@ def generate_single(
         tokenizer,
         messages,
         max_new_tokens=max_new_tokens,
+        do_sample=temperature > 0,
         seed=seed,
         temperature=temperature,
         top_p=top_p,
@@ -1067,7 +1068,9 @@ def main() -> int:
 
     trainer = load_trainer(trainer_path)
     if not trainer.torch.cuda.is_available():
-        raise RuntimeError("CUDA is required.")
+        raise RuntimeError("Benchmark requires the CUDA training environment.")
+    if not 0 <= args.temperature <= 2 or not 0 < args.top_p <= 1 or args.top_k < 1:
+        raise ValueError("Invalid sampling parameters.")
 
     probes = [
         probe
@@ -1088,7 +1091,11 @@ def main() -> int:
         else:
             model["heldout"] = []
 
+    from persona.benchmark_identity import identity, require_compatible
+    fingerprint, specification, snapshots = identity(models, probes, args)
+    require_compatible(output_root, fingerprint)
     manifest = {
+        "fingerprint": fingerprint, "specification": specification,
         "format_version": 1,
         "system_mode": "none",
         "fallback_base_model": args.base_model,
@@ -1126,8 +1133,8 @@ def main() -> int:
 
     for current_base_id, base_group in models_by_base.items():
         print(f"\n=== LOADING BASE: {current_base_id} ===")
-        base_model, tokenizer, _, _ = trainer.load_base_model(
-            current_base_id,
+        base_model, tokenizer, _ = trainer.load_base_model(
+            str(snapshots[current_base_id]),
             training=False,
         )
         base_model.eval()

@@ -1,12 +1,13 @@
-﻿"""Resource cooperation for this workshop only; never pauses unrelated applications."""
+"""Resource cooperation for this workshop only; never pauses unrelated applications."""
 from contextlib import contextmanager
 from pathlib import Path
 import json, os, time
 import psutil
-ROOT = Path(__file__).resolve().parent.parent
+from studio_paths import data_root, ASSET_ROOT, CODE_ROOT
+ROOT = data_root()
 DEFAULTS = dict(cooperative=True, threads=2, reserve_ram_gib=.75,
-                reserve_ram_fraction=.02, checkpoint_floor_gib=.5,
-                checkpoint_floor_fraction=.015, delay_per_example=0.0,
+                reserve_ram_fraction=.10, checkpoint_floor_gib=.5,
+                checkpoint_floor_fraction=.10, delay_per_example=0.0,
                 allow_gpu_if_available=True)
 
 
@@ -16,8 +17,13 @@ def settings():
     if path.exists():
         result.update(json.loads(path.read_text(encoding='utf-8')))
     try:
-        from studio_config import load_config
-        configured=load_config().get('runtime',{}).get('cpu_threads')
+        from studio_paths import config_path
+        import tomllib
+        configured=None
+        path=config_path()
+        if path.is_file():
+            with path.open('rb') as stream:
+                configured=tomllib.load(stream).get('runtime',{}).get('cpu_threads')
         if configured is not None:result['threads']=configured
     except Exception:
         pass
@@ -47,12 +53,13 @@ def load_budget(model, context=2048, mode='Auto', manual=0):
     free = psutil.virtual_memory().available / 2**30
     if model.get('backend') == 'persona_peft':
         weight = (model['base_bytes'] + model['adapter_bytes']) / 2**30
-        working = weight + 1.25
+        # Non-CPU requests are budgeted again inside the worker after device selection.
+        working = weight + 1.25 if mode.upper() == 'CPU' else min(weight, 3.) + 1.25
     else:
         weight = Path(model['path']).stat().st_size / 2**30
         try:
             from model_store import plan_load
-            effective_mode = 'Auto' if cfg['cooperative'] and mode == 'Manual' else mode
+            effective_mode = mode  # Budget the actual requested split, including retries.
             split = plan_load(model, context, effective_mode, 0 if effective_mode != 'Manual' else manual)
             host_weight = float(split['estimated_cpu_weights_gib'])
             gpu_weight = float(split['estimated_gpu_weights_gib'])
@@ -98,11 +105,17 @@ def checkpoint():
     if cfg['cooperative'] and cfg['delay_per_example']:
         time.sleep(min(.5, float(cfg['delay_per_example'])))
 
+def lock_directory():
+    """One OS-released model slot shared by all Studio installs for this user."""
+    path=Path(os.environ.get('STUDIO_LOCK_DIR') or settings().get('lock_dir') or (Path.home()/'.cache'/'persona-activation-studio'/'locks')).expanduser()
+    path.mkdir(parents=True,exist_ok=True)
+    return path
+
 class ModelLaunchLease:
     """Serialize model startup from preflight until the worker owns its long-lived slot."""
     def __init__(self):
         self.file=None
-        path=ROOT/'logs'/'model-launch.lock';path.parent.mkdir(exist_ok=True)
+        path=lock_directory()/'model-launch.lock'
         handle=open(path,'a+b')
         if handle.tell()==0:handle.write(b'0');handle.flush()
         handle.seek(0)
@@ -123,7 +136,7 @@ class ModelLease:
     """OS-released lock shared by workshop workers; unrelated applications are untouched."""
     def __init__(self):
         self.file=None
-        path=ROOT/'logs'/'one-model.lock';path.parent.mkdir(exist_ok=True)
+        path=lock_directory()/'one-model.lock'
         handle=open(path,'a+b')
         if handle.tell()==0:handle.write(b'0');handle.flush()
         handle.seek(0)

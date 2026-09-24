@@ -259,8 +259,11 @@ class Post:
 
 
 class InputStore:
-    def __init__(self, source: Path):
+    def __init__(self, source: Path, exports: Path | None = None):
         self.source = source
+        self.exports = exports
+        if exports is not None and source.is_file():
+            raise ValueError("An external exports directory requires a directory input.")
         self.zf: zipfile.ZipFile | None = None
         if source.is_file() and source.suffix.lower() == ".zip":
             self.zf = zipfile.ZipFile(source, "r")
@@ -283,6 +286,14 @@ class InputStore:
                     return sorted(matches, key=len)[0]
         else:
             for suffix in normalized:
+                if self.exports is not None and suffix.startswith('x_exports/'):
+                    candidate = self.exports / suffix.removeprefix('x_exports/')
+                    if candidate.is_file():
+                        return str(candidate)
+                    continue
+                direct = self.source / suffix
+                if direct.is_file():
+                    return str(direct)
                 matches = list(self.source.rglob(Path(suffix).name))
                 matches = [
                     p
@@ -876,10 +887,16 @@ def build(args: argparse.Namespace) -> None:
     if output.exists():
         if not args.overwrite:
             raise FileExistsError(f"Output already exists: {output}; use --overwrite")
-        shutil.rmtree(output)
+        if output == source or source.is_relative_to(output):
+            raise ValueError('The output directory contains the input source.')
+        import uuid
+        previous = output.with_name(output.name + '.backup-' + uuid.uuid4().hex[:8])
+        output.rename(previous)
+        print('Previous dataset:', previous)
     output.mkdir(parents=True)
 
-    store = InputStore(source)
+    exports = getattr(args, 'exports', None)
+    store = InputStore(source, Path(exports).expanduser().resolve() if exports else None)
     try:
         authored_rows = store.read_csv(
             ["x_exports/all_posts_with_context.csv", "x_exports/all_posts.csv"]
@@ -1170,8 +1187,8 @@ Each SFT row uses generic chat messages and ends in the observed profile respons
 - `queues/unintelligible_or_corrupt.jsonl`: obvious encoding corruption only.
 
 Generated prompt candidates should remain supplemental and should never be merged into
-canonical SFT without review. The companion `generate_prompt_candidates_ollama.py` writes
-candidates to a separate file and does not modify these datasets.
+canonical SFT without review. Studio does not include a prompt-generation command for
+these queues. Portable handles do not anonymize post text or source metadata.
 
 ## Deduplication and leakage controls
 
@@ -1204,6 +1221,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, help="xscra project directory or share-safe ZIP")
     parser.add_argument("--output", required=True, help="output dataset directory")
+    parser.add_argument("--exports", help="External X exports directory")
     parser.add_argument("--max-context-posts", type=int, default=8)
     parser.add_argument("--train-ratio", type=float, default=0.80)
     parser.add_argument("--validation-ratio", type=float, default=0.10)

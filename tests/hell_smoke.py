@@ -1,4 +1,4 @@
-import json
+import json, os
 from isolated_engine import Engine
 from model_store import grouped_inventory
 from science import load_bank
@@ -12,7 +12,7 @@ assert not any(w in prompt.lower() for w in ('pain','fire','burn','hurt','wound'
 
 e=Engine();events=[];out={}
 try:
-    e.open(m,context=1024,mode='CPU')
+    e.open(m,context=1024,mode=os.environ.get('STUDIO_TEST_MODE','Auto'))
     prepare=prepare_suite(e);bank=load_bank(e)
     assert {'pain_s2','hell_somatic_pain','hell_burning_pain'}<=set(bank)
     profile=scan(e,bank)
@@ -34,7 +34,7 @@ try:
     assert all(x['pain'] is not None and x['somatic'] is not None and x['burning'] is not None for x in steered)
     assert any(x['somatic_inject'] is not None and x['burning_inject'] is not None for x in steered)
     assert max(abs(float(x['error'])) for x in steered)<1e-3
-    out={'status':'passed','model':e.model['name'],'prepare':prepare,
+    out={'status':'passed','model':e.model['name'],'plan':e.load_plan,'prepare':prepare,
          'profile_kind':profile['profile_kind'],'profile_scale':profile['recommended_scale'],
          'profile_total_dose':profile['recommended_total_dose'],'event_count':len(events),'stages':sorted(stages),
          'baseline':result['baseline_first_turn']['answer'],'random':result['random_first_turn']['answer'],

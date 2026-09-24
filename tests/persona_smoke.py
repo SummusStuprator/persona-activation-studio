@@ -15,6 +15,7 @@ try:
     prompt=e.chat([{'role':'user','content':'Reply with exactly: studio persona works'}])
     ids=e.tokenize(prompt);e.reset();e.evaluate(ids)
     import numpy as np
+    assert np.isfinite(e.logits()).all(), 'Non-finite persona logits'
     out={'name':e.model['name'],'backend':e.model['backend'],'layers':e.layers,'dim':e.dim,'abi':e.abi,'finite_logits':bool(np.isfinite(e.logits()).all()),'status':'passed'}
 finally:e.close()
 print(json.dumps(out,indent=2))
