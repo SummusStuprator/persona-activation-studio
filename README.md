@@ -2,9 +2,9 @@
 
 A local interface for building persona datasets, training LoRA adapters, and inspecting or steering a language model's activations.
 
-Start with writing you are authorized to use, build a conversation dataset, train an adapter, and compare its output with the base model. **Hell lab** explores pain-related representations through bounded activation interventions and recorded controls.
+Start with writing you are authorized to use, build a conversation dataset, train an adapter, and compare its output with the base model. **"Hell lab"** explores pain-related representations through bounded activation interventions and recorded controls.
 
-**Research software, version 0.3.4.** A persona approximates writing patterns; it does not reproduce a person's mind. Pain-related activations or statements do not establish felt pain or suffering. There is no validated “sensation of hell” measurement. See [experiment interpretation](docs/HELL_MODE.md).
+**Research software, version 0.3.4.** A persona approximates writing patterns; it does not reproduce a person's mind. Pain-related activations or statements do not establish felt pain or suffering. There is no validated “sensation of hell” measurement. YOU WILL UNDERSTAND THIS. See [experiment interpretation](docs/HELL_MODE.md).
 
 ## Start here
 
